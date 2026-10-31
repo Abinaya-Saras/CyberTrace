@@ -174,71 +174,47 @@ class NDJSONParser:
     # ------------------------------------------------------------------
 
     def _normalize(self, ev: dict, raw_file: str, offset: int, length: int) -> dict:
-        """Flatten one ECS JSON event into a normalized row dict."""
+        """Flatten one ECS JSON event into a normalized 28-field row dict."""
         row = empty_row()
 
-        # --- Provenance ---
+        # --- 1. Provenance (FR-1) ---
         row["event_id"]       = _get(ev, "event", "id") or str(uuid.uuid4())
         row["raw_file"]       = raw_file
         row["byte_offset"]    = offset
         row["record_length"]  = length
         row["log_source"]     = "edr"
 
-        # --- Timestamp ---
+        # --- 2. Temporal Context ---
         row["timestamp"]      = _parse_timestamp(ev.get("@timestamp"))
 
-        # --- Event classification ---
-        row["event_kind"]     = _get(ev, "event", "kind")
+        # --- 3. Classification & Outcome ---
         row["event_category"] = _get_first(ev, "event", "category")
-        row["event_type"]     = _get_first(ev, "event", "type")
         row["event_action"]   = _get(ev, "event", "action")
         row["event_outcome"]  = _get(ev, "event", "outcome")
-        row["event_severity"] = _get_int(ev, "event", "severity")
-        row["event_module"]   = _get(ev, "event", "module")
-        row["event_dataset"]  = _get(ev, "event", "dataset")
+        row["winlog_event_id"] = _get_int(ev, "winlog", "event_id")
 
-        # --- Host ---
+        # --- 4. Host & Identity ---
         row["host_name"]      = _get(ev, "host", "name")
         host_ips = _get(ev, "host", "ip")
         row["host_ip"]        = host_ips[0] if isinstance(host_ips, list) and host_ips else None
-        row["host_os_type"]   = _get(ev, "host", "os", "type")
-        row["host_os_full"]   = _get(ev, "host", "os", "full")
-
-        # --- User ---
         row["username"]       = _get(ev, "user", "name")
         row["user_domain"]    = _get(ev, "user", "domain")
 
-        # --- Source ---
-        row["source_ip"]      = _get(ev, "source", "ip")
-        row["source_port"]    = _get_int(ev, "source", "port")
+        # --- 5. Process Lineage & Command Context ---
+        row["process_name"]         = _get(ev, "process", "name")
+        row["process_id"]           = _get_int(ev, "process", "pid")
+        row["process_command_line"]  = _get(ev, "process", "command_line")
+        row["parent_process_name"]  = _get(ev, "process", "parent", "name")
+        row["parent_process_id"]    = _get_int(ev, "process", "parent", "pid")
 
-        # --- Destination ---
-        row["destination_ip"]   = _get(ev, "destination", "ip")
-        row["destination_port"] = _get_int(ev, "destination", "port")
-        row["destination_domain"] = _get(ev, "destination", "domain")
+        # --- 6. Network Communications ---
+        row["source_ip"]            = _get(ev, "source", "ip")
+        row["source_port"]          = _get_int(ev, "source", "port")
+        row["destination_ip"]       = _get(ev, "destination", "ip")
+        row["destination_port"]     = _get_int(ev, "destination", "port")
+        row["destination_domain"]   = _get(ev, "destination", "domain")
 
-        # --- Process ---
-        row["process_name"]        = _get(ev, "process", "name")
-        row["process_id"]          = _get_int(ev, "process", "pid")
-        row["process_executable"]  = _get(ev, "process", "executable")
-        row["process_command_line"] = _get(ev, "process", "command_line")
-        row["process_entity_id"]   = _get(ev, "process", "entity_id")
-        row["parent_process_name"] = _get(ev, "process", "parent", "name")
-        row["parent_process_id"]   = _get_int(ev, "process", "parent", "pid")
-        row["process_hash_md5"]    = _get(ev, "process", "hash", "md5")
-        row["process_hash_sha256"] = _get(ev, "process", "hash", "sha256")
-
-        # --- File ---
-        row["file_path"]      = _get(ev, "file", "path")
-        row["file_name"]      = _get(ev, "file", "name")
-        row["file_size"]      = _get_int(ev, "file", "size")
-        file_ext = _get(ev, "file", "extension")
-        if file_ext is None and row["file_name"]:
-            parts = row["file_name"].rsplit(".", 1)
-            file_ext = parts[1] if len(parts) == 2 else None
-        row["file_extension"] = file_ext
-
-        # --- Registry ---
+        # --- 7. Persistence & Impact Artifacts ---
         row["registry_path"]  = _get(ev, "registry", "path")
         reg_data = _get(ev, "registry", "data")
         if isinstance(reg_data, dict):
@@ -247,23 +223,11 @@ class NDJSONParser:
         elif reg_data is not None:
             row["registry_data"] = str(reg_data)
 
-        # --- DNS ---
-        row["dns_query_name"]    = _get(ev, "dns", "question", "name")
-        row["dns_response_code"] = _get(ev, "dns", "response_code")
-
-        # --- Network ---
-        row["network_transport"]   = _get(ev, "network", "transport")
-        row["network_direction"]   = _get(ev, "network", "direction")
-        row["network_protocol"]    = _get(ev, "network", "protocol")
-        row["network_bytes_total"] = _get_int(ev, "network", "bytes")
-        row["network_bytes_sent"]  = None   # EDR only has total bytes
-        row["network_bytes_recv"]  = None
-
-        # --- Windows event log ---
-        row["winlog_event_id"]    = _get_int(ev, "winlog", "event_id")
-        row["winlog_logon_type"]  = _get(ev, "winlog", "logon", "type")
-
-        # --- FortiGate fields: all NULL for EDR ---
-        # (already None from empty_row)
+        row["file_path"]      = _get(ev, "file", "path")
+        file_ext = _get(ev, "file", "extension")
+        if file_ext is None and _get(ev, "file", "name"):
+            parts = str(_get(ev, "file", "name")).rsplit(".", 1)
+            file_ext = parts[1] if len(parts) == 2 else None
+        row["file_extension"] = file_ext
 
         return row

@@ -1,126 +1,76 @@
 """
-CyberTrace normalized event schema.
+CyberTrace Normalized Event Schema.
 
-One flat schema for all log sources (EDR, FortiGate, etc.).
-Fields not present in a given source are stored as NULL.
-This schema is the single contract between parsers, the Parquet
-writer, and every downstream module (detection, correlation, graph).
+One streamlined schema for all log sources (EDR, FortiGate, etc.).
+Contains exactly 28 essential fields required for:
+  - Ingestion & Source Provenance (FR-1)
+  - Detection Queries (FR-2)
+  - MITRE ATT&CK & Kill Chain Mapping (FR-3)
+  - Incident Correlation & Entity Resolution (FR-4)
+  - Chronological Attack Timelines & Host/User Graphs (FR-5)
+  - Evidence-Supported Reach-Next Reasoning (FR-6)
+
+Fields not present in a given source record are stored as NULL.
 """
 
 import pyarrow as pa
 
 # ---------------------------------------------------------------
-# Schema definition
+# Streamlined 28-Column Normalized Schema
 # ---------------------------------------------------------------
 
 NORMALIZED_SCHEMA = pa.schema([
-    # --- Evidence provenance (NEVER drop these) ---
-    pa.field("event_id",        pa.string()),   # Original event.id or generated UUID
-    pa.field("raw_file",        pa.string()),   # Source filename
-    pa.field("byte_offset",     pa.int64()),    # Start byte in raw file
-    pa.field("record_length",   pa.int32()),    # Byte length of raw record
-    pa.field("log_source",      pa.string()),   # "edr" | "fortigate"
+    # --- 1. Evidence Provenance (FR-1: Exact Raw Byte-Level Traceability) ---
+    pa.field("event_id",               pa.string()),   # Original event.id or generated UUID
+    pa.field("raw_file",               pa.string()),   # Source raw filename
+    pa.field("byte_offset",            pa.int64()),    # Start byte offset in raw file
+    pa.field("record_length",          pa.int32()),    # Byte length of raw record
+    pa.field("log_source",             pa.string()),   # "edr" | "fortigate"
 
-    # --- Time ---
-    pa.field("timestamp",       pa.timestamp("us", tz="UTC")),  # Microsecond UTC
+    # --- 2. Temporal Context (FR-1, FR-4, FR-5) ---
+    pa.field("timestamp",              pa.timestamp("us", tz="UTC")),  # Microsecond UTC timestamp
 
-    # --- Event classification ---
-    pa.field("event_kind",      pa.string()),   # event | alert | signal
-    pa.field("event_category",  pa.string()),   # authentication | process | network | file | registry
-    pa.field("event_type",      pa.string()),   # start | connection | change | creation | protocol
-    pa.field("event_action",    pa.string()),   # user_logon | process_created | ...
-    pa.field("event_outcome",   pa.string()),   # success | failure
-    pa.field("event_severity",  pa.int16()),    # 0-10
-    pa.field("event_module",    pa.string()),   # edr | fortigate
-    pa.field("event_dataset",   pa.string()),   # edr.authentication | utm.dns | ...
+    # --- 3. Event Classification & Outcome (FR-2) ---
+    pa.field("event_category",         pa.string()),   # authentication | process | network | file | registry
+    pa.field("event_action",           pa.string()),   # user_logon | process_created | file_rename | ...
+    pa.field("event_outcome",          pa.string()),   # success | failure
+    pa.field("winlog_event_id",        pa.int32()),    # 4624 (logon success), 4625 (logon fail), etc.
 
-    # --- Host ---
-    pa.field("host_name",       pa.string()),
-    pa.field("host_ip",         pa.string()),   # Primary IP as string
-    pa.field("host_os_type",    pa.string()),   # windows | linux
-    pa.field("host_os_full",    pa.string()),   # "Windows 11 Enterprise 23H2"
+    # --- 4. Host & Identity (FR-4, FR-5) ---
+    pa.field("host_name",              pa.string()),   # Target/observer host name
+    pa.field("host_ip",                pa.string()),   # Primary host IP
+    pa.field("username",               pa.string()),   # Acting/target user account
+    pa.field("user_domain",            pa.string()),   # User domain (e.g., CORP)
 
-    # --- User ---
-    pa.field("username",        pa.string()),
-    pa.field("user_domain",     pa.string()),
+    # --- 5. Process Lineage & Command Context (FR-2, FR-4, FR-5) ---
+    pa.field("process_name",           pa.string()),   # Executable name (e.g., powershell.exe)
+    pa.field("process_id",             pa.int32()),    # OS PID
+    pa.field("process_command_line",    pa.string()),   # Full execution command line
+    pa.field("parent_process_name",    pa.string()),   # Spawning process name
+    pa.field("parent_process_id",      pa.int32()),    # Spawning process PID
 
-    # --- Source / Destination (network + auth) ---
-    pa.field("source_ip",       pa.string()),
-    pa.field("source_port",     pa.int32()),
-    pa.field("destination_ip",  pa.string()),
-    pa.field("destination_port", pa.int32()),
-    pa.field("destination_domain", pa.string()),
+    # --- 6. Network Communications & Lateral Movement (FR-2, FR-4, FR-6) ---
+    pa.field("source_ip",              pa.string()),   # Inbound/initiating IP
+    pa.field("source_port",            pa.int32()),    # Source port
+    pa.field("destination_ip",         pa.string()),   # Outbound target IP
+    pa.field("destination_port",       pa.int32()),    # Outbound target port (e.g., 445, 80, 443)
+    pa.field("destination_domain",     pa.string()),   # DNS query or destination hostname
 
-    # --- Process ---
-    pa.field("process_name",    pa.string()),
-    pa.field("process_id",      pa.int32()),
-    pa.field("process_executable", pa.string()),
-    pa.field("process_command_line", pa.string()),
-    pa.field("process_entity_id", pa.string()),
-    pa.field("parent_process_name", pa.string()),
-    pa.field("parent_process_id", pa.int32()),
-    pa.field("process_hash_md5", pa.string()),
-    pa.field("process_hash_sha256", pa.string()),
-
-    # --- File ---
-    pa.field("file_path",       pa.string()),
-    pa.field("file_name",       pa.string()),
-    pa.field("file_size",       pa.int64()),
-    pa.field("file_extension",  pa.string()),
-
-    # --- Registry ---
-    pa.field("registry_path",   pa.string()),
-    pa.field("registry_data",   pa.string()),
-
-    # --- DNS ---
-    pa.field("dns_query_name",  pa.string()),
-    pa.field("dns_response_code", pa.string()),
-
-    # --- Network ---
-    pa.field("network_transport", pa.string()),  # tcp | udp
-    pa.field("network_direction", pa.string()),  # inbound | outbound
-    pa.field("network_protocol", pa.string()),   # https | dns | ...
-    pa.field("network_bytes_total", pa.int64()), # Total bytes
-    pa.field("network_bytes_sent", pa.int64()),
-    pa.field("network_bytes_recv", pa.int64()),
-
-    # --- Windows event log ---
-    pa.field("winlog_event_id", pa.int32()),
-    pa.field("winlog_logon_type", pa.string()),
-
-    # --- FortiGate-specific (detection-relevant) ---
-    pa.field("fg_type",         pa.string()),   # traffic | utm | event
-    pa.field("fg_subtype",      pa.string()),   # forward | dns | system | ips | ...
-    pa.field("fg_level",        pa.string()),   # information | notice | alert | ...
-    pa.field("fg_logid",        pa.string()),
-    pa.field("fg_session_id",   pa.string()),
-    pa.field("fg_service",      pa.string()),   # DNS | HTTPS | SSH | ...
-    pa.field("fg_app",          pa.string()),   # Application name
-    pa.field("fg_app_category", pa.string()),
-    pa.field("fg_app_risk",     pa.string()),
-    pa.field("fg_policy_id",    pa.int32()),
-    pa.field("fg_src_country",  pa.string()),
-    pa.field("fg_dst_country",  pa.string()),
-    pa.field("fg_src_intf",     pa.string()),
-    pa.field("fg_dst_intf",     pa.string()),
-    pa.field("fg_attack_name",  pa.string()),   # IPS attack name
-    pa.field("fg_virus_name",   pa.string()),   # AV detection
-    pa.field("fg_url",          pa.string()),
-    pa.field("fg_hostname",     pa.string()),   # Destination hostname (DNS/web)
-    pa.field("fg_cat_desc",     pa.string()),   # Web filter category
-    pa.field("fg_msg",          pa.string()),   # Human-readable message
-    pa.field("fg_duration",     pa.int32()),    # Session duration in seconds
-    pa.field("fg_status",       pa.string()),   # failed | success etc.
-    pa.field("fg_reason",       pa.string()),   # Failure reason
+    # --- 7. Persistence & Impact Artifacts (FR-2) ---
+    pa.field("registry_path",          pa.string()),   # Windows registry key path
+    pa.field("registry_data",          pa.string()),   # Registry value payload
+    pa.field("file_path",              pa.string()),   # File system path
+    pa.field("file_extension",         pa.string()),   # File extension (e.g., locked, crypto)
 ])
 
-# Column names as a frozen set for fast membership checks
+# Column names set for O(1) membership checks
 SCHEMA_COLUMNS = frozenset(f.name for f in NORMALIZED_SCHEMA)
 
-# Number of columns
+# Strict field count verification
 NUM_COLUMNS = len(NORMALIZED_SCHEMA)
+assert NUM_COLUMNS == 28, f"Expected 28 fields in schema, got {NUM_COLUMNS}"
 
 
 def empty_row() -> dict:
-    """Return a dict with all schema keys set to None."""
+    """Return a fresh dictionary with all 28 schema keys initialized to None."""
     return {f.name: None for f in NORMALIZED_SCHEMA}

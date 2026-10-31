@@ -223,120 +223,51 @@ class FortiGateParser:
     def _normalize(
         self, kv: dict, raw_file: str, offset: int, length: int
     ) -> dict:
-        """Flatten one FortiGate KV record into a normalized row dict."""
+        """Flatten one FortiGate KV record into a normalized 28-field row dict."""
         row = empty_row()
 
-        # --- Provenance ---
+        # --- 1. Provenance (FR-1) ---
         row["event_id"]      = kv.get("logid", "") + "-" + kv.get("sessionid", str(uuid.uuid4()))
         row["raw_file"]      = raw_file
         row["byte_offset"]   = offset
         row["record_length"] = length
         row["log_source"]    = "fortigate"
 
-        # --- Timestamp ---
+        # --- 2. Temporal Context ---
         row["timestamp"] = _parse_fg_timestamp(kv)
 
-        # --- Event classification ---
-        fg_type = kv.get("type", "")
-        fg_sub = kv.get("subtype", "")
-        fg_level = kv.get("level", "")
+        # --- 3. Event Classification & Outcome ---
         fg_action = kv.get("action", "")
-
-        row["event_kind"]     = "alert" if fg_level in ("alert", "emergency", "critical") else "event"
         row["event_category"] = _map_category(kv)
-        row["event_type"]     = fg_sub
         row["event_action"]   = _map_action(kv)
         row["event_outcome"]  = kv.get("status") or ("success" if fg_action == "accept" else (
             "failure" if fg_action in ("deny", "blocked", "dropped") else None))
-        row["event_severity"] = _FG_SEVERITY.get(fg_level, 0)
-        row["event_module"]   = "fortigate"
-        row["event_dataset"]  = f"{fg_type}.{fg_sub}" if fg_sub else fg_type
+        row["winlog_event_id"] = None
 
-        # --- Host (the FortiGate device itself) ---
+        # --- 4. Host & Identity ---
         row["host_name"]    = kv.get("devname")
-        row["host_ip"]      = None  # FortiGate is the observer, not the host
-        row["host_os_type"] = None
-        row["host_os_full"] = None
-
-        # --- User ---
+        row["host_ip"]      = None  # FortiGate device is observer, not host
         row["username"]     = kv.get("user")
         row["user_domain"]  = None
 
-        # --- Source / Destination ---
+        # --- 5. Process Lineage: N/A for network firewall ---
+        row["process_name"] = None
+        row["process_id"] = None
+        row["process_command_line"] = None
+        row["parent_process_name"] = None
+        row["parent_process_id"] = None
+
+        # --- 6. Network Communications ---
         row["source_ip"]          = kv.get("srcip")
         row["source_port"]        = _safe_int(kv.get("srcport"))
         row["destination_ip"]     = kv.get("dstip")
         row["destination_port"]   = _safe_int(kv.get("dstport"))
-        row["destination_domain"] = kv.get("hostname")  # DNS/web destination hostname
+        row["destination_domain"] = kv.get("hostname")
 
-        # --- Process: N/A for firewall logs ---
-
-        # --- File: N/A ---
-
-        # --- Registry: N/A ---
-
-        # --- DNS ---
-        if fg_sub == "dns":
-            row["dns_query_name"]    = kv.get("hostname")
-            row["dns_response_code"] = None  # Not in FortiGate KV
-
-        # --- Network ---
-        proto_num = kv.get("proto")
-        transport = None
-        if proto_num == "6":
-            transport = "tcp"
-        elif proto_num == "17":
-            transport = "udp"
-        elif proto_num == "1":
-            transport = "icmp"
-
-        row["network_transport"]   = transport
-        # Determine direction from interface roles
-        src_role = kv.get("srcintfrole", "")
-        dst_role = kv.get("dstintfrole", "")
-        if src_role == "lan" and dst_role == "wan":
-            row["network_direction"] = "outbound"
-        elif src_role == "wan" and dst_role == "lan":
-            row["network_direction"] = "inbound"
-        elif src_role == "dmz" and dst_role == "wan":
-            row["network_direction"] = "outbound"
-        elif src_role == "wan" and dst_role == "dmz":
-            row["network_direction"] = "inbound"
-        else:
-            row["network_direction"] = None
-
-        row["network_protocol"]    = kv.get("service")
-        sent = _safe_int(kv.get("sentbyte"))
-        recv = _safe_int(kv.get("rcvdbyte"))
-        row["network_bytes_sent"]  = sent
-        row["network_bytes_recv"]  = recv
-        row["network_bytes_total"] = (sent or 0) + (recv or 0) if (sent is not None or recv is not None) else None
-
-        # --- Windows event log: N/A ---
-
-        # --- FortiGate-specific fields ---
-        row["fg_type"]         = fg_type
-        row["fg_subtype"]      = fg_sub
-        row["fg_level"]        = fg_level
-        row["fg_logid"]        = kv.get("logid")
-        row["fg_session_id"]   = kv.get("sessionid")
-        row["fg_service"]      = kv.get("service")
-        row["fg_app"]          = kv.get("app")
-        row["fg_app_category"] = kv.get("appcat")
-        row["fg_app_risk"]     = kv.get("apprisk")
-        row["fg_policy_id"]    = _safe_int(kv.get("policyid"))
-        row["fg_src_country"]  = kv.get("srccountry")
-        row["fg_dst_country"]  = kv.get("dstcountry")
-        row["fg_src_intf"]     = kv.get("srcintf")
-        row["fg_dst_intf"]     = kv.get("dstintf")
-        row["fg_attack_name"]  = kv.get("attack")
-        row["fg_virus_name"]   = kv.get("virus")
-        row["fg_url"]          = kv.get("url")
-        row["fg_hostname"]     = kv.get("hostname")
-        row["fg_cat_desc"]     = kv.get("catdesc")
-        row["fg_msg"]          = kv.get("msg")
-        row["fg_duration"]     = _safe_int(kv.get("duration"))
-        row["fg_status"]       = kv.get("status")
-        row["fg_reason"]       = kv.get("reason")
+        # --- 7. Persistence & Impact Artifacts: N/A for firewall ---
+        row["registry_path"] = None
+        row["registry_data"] = None
+        row["file_path"] = None
+        row["file_extension"] = None
 
         return row
