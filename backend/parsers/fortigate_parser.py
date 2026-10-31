@@ -184,20 +184,21 @@ class FortiGateParser:
         source = source_label or filename
         byte_offset = 0
 
-        with open(filepath, "r", encoding="utf-8", errors="replace") as fh:
-            for line_no, raw_line in enumerate(fh, start=1):
-                line_bytes = len(raw_line.encode("utf-8"))
+        with open(filepath, "rb") as fh:
+            for line_no, raw_bytes in enumerate(fh, start=1):
+                line_bytes = len(raw_bytes)
                 current_offset = byte_offset
                 byte_offset += line_bytes
 
                 self.stats["total_lines"] += 1
 
-                stripped = raw_line.strip()
-                if not stripped:
+                stripped_bytes = raw_bytes.strip()
+                if not stripped_bytes:
                     self.stats["empty_lines"] += 1
                     continue
 
                 try:
+                    stripped = stripped_bytes.decode("utf-8", errors="replace")
                     kv = _parse_kv_line(stripped)
                     if not kv:
                         raise ValueError("No key-value pairs extracted")
@@ -213,7 +214,7 @@ class FortiGateParser:
                         "line": line_no,
                         "byte_offset": current_offset,
                         "error": str(exc),
-                        "raw": stripped[:500],
+                        "raw": stripped_bytes[:500].decode("utf-8", errors="replace"),
                     })
 
     # ------------------------------------------------------------------
@@ -227,7 +228,7 @@ class FortiGateParser:
         row = empty_row()
 
         # --- 1. Provenance (FR-1) ---
-        row["event_id"]      = kv.get("logid", "") + "-" + kv.get("sessionid", str(uuid.uuid4()))
+        row["event_id"]      = kv.get("logid", "") + "-" + (kv.get("sessionid") or str(uuid.uuid4()))
         row["raw_file"]      = raw_file
         row["byte_offset"]   = offset
         row["record_length"] = length
@@ -238,10 +239,25 @@ class FortiGateParser:
 
         # --- 3. Event Classification & Outcome ---
         fg_action = kv.get("action", "")
+        fg_status = kv.get("status")
         row["event_category"] = _map_category(kv)
         row["event_action"]   = _map_action(kv)
-        row["event_outcome"]  = kv.get("status") or ("success" if fg_action == "accept" else (
-            "failure" if fg_action in ("deny", "blocked", "dropped") else None))
+
+        if fg_status:
+            st_lower = fg_status.lower()
+            if st_lower in ("failed", "failure", "fail", "deny", "blocked"):
+                row["event_outcome"] = "failure"
+            elif st_lower in ("success", "successful", "ok", "accept"):
+                row["event_outcome"] = "success"
+            else:
+                row["event_outcome"] = fg_status
+        elif fg_action == "accept":
+            row["event_outcome"] = "success"
+        elif fg_action in ("deny", "blocked", "dropped"):
+            row["event_outcome"] = "failure"
+        else:
+            row["event_outcome"] = None
+
         row["winlog_event_id"] = None
 
         # --- 4. Host & Identity ---

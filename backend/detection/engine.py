@@ -151,6 +151,28 @@ def detect_brute_force(
     rows = engine.query(sql, [min_failures])
     alerts: list[Alert] = []
 
+    # Pre-fetch successful authentications in one query to avoid N per-row queries
+    success_map: dict[tuple[str, str, str], list[Any]] = {}
+    if check_subsequent_success:
+        succ_all_sql = f"""
+        SELECT username, host_name, source_ip, timestamp
+        FROM {view_name}
+        WHERE event_category = 'authentication'
+          AND (event_outcome = 'success' OR winlog_event_id = 4624)
+          AND username IS NOT NULL
+          AND host_name IS NOT NULL
+          AND source_ip IS NOT NULL
+        """
+        try:
+            s_rows = engine.query(succ_all_sql)
+            for su, sh, ss, st in s_rows:
+                key = (str(su), str(sh), str(ss))
+                if key not in success_map:
+                    success_map[key] = []
+                success_map[key].append(st)
+        except Exception:
+            pass
+
     for row in rows:
         host, user, src_ip, fail_cnt, first_seen, last_seen, eids, rfiles, boffs, rlens, tss, unames, sips = row
 
@@ -159,20 +181,12 @@ def detect_brute_force(
 
         # Audit Check: verify if subsequent successful login occurred from the SAME source IP
         subsequent_success_from_source = False
-        if check_subsequent_success and user and src_ip:
-            succ_sql = f"""
-            SELECT count(*)
-            FROM {view_name}
-            WHERE event_category = 'authentication'
-              AND (event_outcome = 'success' OR winlog_event_id = 4624)
-              AND username = ?
-              AND host_name = ?
-              AND source_ip = ?
-              AND timestamp >= ?
-            """
-            succ_row = engine.query_one(succ_sql, [user, host, src_ip, first_seen])
-            if succ_row and succ_row[0] > 0:
-                subsequent_success_from_source = True
+        if check_subsequent_success and user and host and src_ip:
+            stamps = success_map.get((str(user), str(host), str(src_ip)), [])
+            for st in stamps:
+                if first_seen and st >= first_seen:
+                    subsequent_success_from_source = True
+                    break
 
         if subsequent_success_from_source:
             confidence = "high"

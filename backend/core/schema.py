@@ -71,6 +71,10 @@ NUM_COLUMNS = len(NORMALIZED_SCHEMA)
 assert NUM_COLUMNS == 28, f"Expected 28 fields in schema, got {NUM_COLUMNS}"
 
 
+_EMPTY_ROW_TEMPLATE = {f.name: None for f in NORMALIZED_SCHEMA}
+
+
 def empty_row() -> dict:
     """Return a fresh dictionary with all 28 schema keys initialized to None."""
-    return {f.name: None for f in NORMALIZED_SCHEMA}
+    return _EMPTY_ROW_TEMPLATE.copy()
+
