@@ -8,3 +8,5 @@ data/samples/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/samples/.gitkeep
+firex-10G.log
+*.log

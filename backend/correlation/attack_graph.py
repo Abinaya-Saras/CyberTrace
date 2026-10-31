@@ -546,7 +546,7 @@ def evaluate_reach_next(
                     )
                 )
             else:
-                # External outbound network activity (C2 / external destination)
+                # External outbound network activity (observed outbound destination)
                 reach_assets.append(
                     ReachNextAsset(
                         target=target,

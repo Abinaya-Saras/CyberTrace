@@ -494,13 +494,13 @@ def test_reach_next_semantics_external_vs_internal():
         process_name="powershell.exe",
     )
     supp_net = [
-        # External C2 IP (RFC 5737 test address)
+        # Observed outbound destination (RFC 5737 test address)
         {
             "event_id": "net-ext-1",
             "host_name": "WS-001",
             "process_name": "powershell.exe",
             "destination_ip": "203.0.113.57",
-            "destination_domain": "c2-domain.test",
+            "destination_domain": "external-example.test",
             "raw_file": "net.json",
             "byte_offset": 100,
             "record_length": 50,
