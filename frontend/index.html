@@ -1670,6 +1670,37 @@
         stages[col].push(n);
       });
 
+      // Stage 1 Sorting: Parent processes (winword, office) on top, child processes (powershell) below
+      stages[1].sort((a, b) => {
+        const isParentA = (a.properties?.is_parent) || (a.process_name || "").toLowerCase().includes("winword") || (a.process_name || "").toLowerCase().includes("office");
+        const isParentB = (b.properties?.is_parent) || (b.process_name || "").toLowerCase().includes("winword") || (b.process_name || "").toLowerCase().includes("office");
+        if (isParentA && !isParentB) return -1;
+        if (!isParentA && isParentB) return 1;
+        return (a.label || "").localeCompare(b.label || "");
+      });
+
+      // Stage 3 Sorting: Payload binary (unknown.exe), then encrypted files (*.locked), then network destinations
+      stages[3].sort((a, b) => {
+        const getRank = (n) => {
+          if (n.node_type === "process" || n.node_type === "process_group") return 0;
+          if (n.node_type === "file") return 1;
+          return 2;
+        };
+        return getRank(a) - getRank(b);
+      });
+
+      // Stage 4 Sorting: ATT&CK Detections in natural kill-chain progression (Execution -> Persistence -> Impact)
+      stages[4].sort((a, b) => {
+        const getRank = (n) => {
+          const l = (n.label || "").toLowerCase();
+          if (l.includes("1059")) return 0; // T1059 Execution
+          if (l.includes("1547")) return 1; // T1547 Persistence
+          if (l.includes("1486")) return 2; // T1486 Impact
+          return 3;
+        };
+        return getRank(a) - getRank(b);
+      });
+
       // Compute Canvas Coordinate Grid with generous vertical spacing
       const cardW = 158;
       const cardH = 42;
