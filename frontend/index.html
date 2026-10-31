@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberTrace — Kill Chain & Attack Path Analysis</title>
+  <style>
+    :root {
+      --bg-primary: #0a0d12;
+      --bg-secondary: #12171f;
+      --bg-tertiary: #1a222d;
+      --bg-card: #151c26;
+      --bg-card-hover: #1e2736;
+      --border-color: #273444;
+      --border-focus: #3b82f6;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-purple: #8b5cf6;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --crit-color: #ef4444;
+      --high-color: #f97316;
+      --med-color: #f59e0b;
+      --low-color: #3b82f6;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      line-height: 1.5;
+      font-size: 14px;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    header {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #fff, var(--text-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      padding: 4px 10px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-green);
+      border-radius: 20px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    /* Main Container */
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 57px);
+    }
+
+    /* Ingestion Toolbar */
+    .ingest-bar {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .ingest-form {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      max-width: 600px;
+    }
+
+    .ingest-input {
+      background-color: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      flex: 1;
+      font-family: inherit;
+    }
+
+    .ingest-input:focus {
+      outline: none;
+      border-color: var(--border-focus);
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--accent-blue), #2563eb);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .ingest-metrics {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .metric-item strong {
+      color: var(--text-primary);
+    }
+
+    /* Content Layout */
+    .content-layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Incident Dashboard */
+    .sidebar-panel {
+      background-color: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .kpi-card {
+      background-color: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .kpi-val {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .kpi-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .kpi-crit { color: var(--crit-color); }
+    .kpi-high { color: var(--high-color); }
+    .kpi-med { color: var(--med-color); }
+
+    .filter-bar {
+      padding: 10px 14px;
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .search-input {
+      background-color: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      flex: 1;
+    }
+
+    .select-input {
+      background-color: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .incident-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .incident-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .incident-card:hover {
+      background-color: var(--bg-card-hover);
+      border-color: rgba(59, 130, 246, 0.4);
+      transform: translateX(2px);
+    }
+
+    .incident-card.active {
+      border-color: var(--accent-blue);
+      background-color: #172334;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .inc-id {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-critical { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .badge-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
+    .badge-medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-low { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .meta-tag {
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-secondary);
+    }
+
+    /* Right Investigation Panel */
+    .investigation-panel {
+      background-color: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .detail-header {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .detail-title-group h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .detail-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      max-width: 900px;
+    }
+
+    .detail-meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .pill {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+
+    .nav-tabs {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      padding: 0 24px;
+      gap: 20px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      padding: 10px 0;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      color: var(--accent-cyan);
+    }
+
+    .tab-btn.active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--accent-cyan);
+    }
+
+    /* Tab Content Viewports */
+    .tab-viewport {
+      flex: 1;
+      overflow: auto;
+      padding: 18px 24px;
+      display: none;
+    }
+
+    .tab-viewport.active {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Graph Canvas Viewport */
+    .graph-container {
+      flex: 1;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 480px;
+    }
+
+    .graph-toolbar {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+      background: rgba(18, 23, 31, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 4px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .graph-legend {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(18, 23, 31, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 11px;
+      z-index: 10;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-circle {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    #graphCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+
+    #graphCanvas:active {
+      cursor: grabbing;
+    }
+
+    .graph-inspector {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: 280px;
+      max-height: calc(100% - 70px);
+      background: rgba(21, 28, 38, 0.95);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 12px;
+      overflow-y: auto;
+      z-index: 10;
+      display: none;
+    }
+
+    .graph-inspector h4 {
+      font-size: 13px;
+      color: #fff;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 4px;
+    }
+
+    /* Timeline View */
+    .timeline-stream {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      margin-left: 20px;
+      padding-left: 20px;
+      border-left: 2px solid var(--border-color);
+      gap: 16px;
+    }
+
+    .timeline-node {
+      position: relative;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      transition: border-color 0.2s;
+    }
+
+    .timeline-node:hover {
+      border-color: var(--accent-cyan);
+    }
+
+    .timeline-dot {
+      position: absolute;
+      left: -29px;
+      top: 16px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background-color: var(--bg-secondary);
+      border: 2px solid var(--accent-cyan);
+    }
+
+    .t-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .t-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: #fff;
+    }
+
+    .t-time {
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .t-body {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .t-evidence-btn {
+      font-size: 11px;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .t-evidence-btn:hover {
+      background: rgba(6, 182, 212, 0.2);
+    }
+
+    /* Reach-Next View (FR-6) */
+    .reach-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 14px;
+    }
+
+    .reach-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .reach-status-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      width: fit-content;
+    }
+
+    .reach-status-outbound {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .reach-status-internal {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .reach-target {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      font-family: monospace;
+    }
+
+    .reach-reasoning {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    /* Evidence Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-dialog {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 90%;
+      max-width: 760px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .raw-code-block {
+      background-color: #05080c;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      color: #a5d6ff;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+
+    /* Empty States */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">CT</div>
+      <div>
+        <div class="brand-title">CyberTrace</div>
+        <div class="brand-subtitle">Kill Chain & Attack Path Analysis</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="status-pill" id="systemStatusPill">
+        <span class="status-dot"></span>
+        <span id="systemStatusText">Pipeline Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-container">
+
+    <!-- Ingestion & Pipeline Control Bar (FR-1) -->
+    <div class="ingest-bar">
+      <div class="ingest-form">
+        <input type="text" id="logPathInput" class="ingest-input" value="edr_events.json" placeholder="Enter log path (e.g. edr_events.json)">
+        <button class="btn" id="runIngestBtn" onclick="runIngestion()">
+          <span id="ingestSpinner" style="display:none;">⏳</span>
+          <span>Ingest & Correlate</span>
+        </button>
+      </div>
+      <div class="ingest-metrics" id="ingestMetricsBar">
+        <div class="metric-item">Active Dataset: <strong id="metricDataset">edr_events.parquet</strong></div>
+        <div class="metric-item">Incidents: <strong id="metricIncidents">29</strong></div>
+        <div class="metric-item">RAM: <strong id="metricRam">~150 MB</strong></div>
+      </div>
+    </div>
+
+    <!-- Main Content Layout -->
+    <div class="content-layout">
+
+      <!-- Left Sidebar: Incident Dashboard (FR-4 & FR-7) -->
+      <aside class="sidebar-panel">
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-val" id="kpiTotalIncidents">0</div>
+            <div class="kpi-label">Incidents</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-val kpi-crit" id="kpiCritical">0</div>
+            <div class="kpi-label">Critical</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-val kpi-high" id="kpiHigh">0</div>
+            <div class="kpi-label">High</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-val kpi-med" id="kpiMedium">0</div>
+            <div class="kpi-label">Medium</div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search hosts or titles..." oninput="filterIncidents()">
+          <select id="severitySelect" class="select-input" onchange="filterIncidents()">
+            <option value="">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+
+        <div class="incident-list" id="incidentListContainer">
+          <div class="empty-state">Loading incidents...</div>
+        </div>
+      </aside>
+
+      <!-- Right Panel: Incident Investigation (FR-5 & FR-6) -->
+      <main class="investigation-panel">
+        
+        <!-- Incident Header Detail -->
+        <div class="detail-header" id="detailHeader">
+          <div class="detail-title-group">
+            <h2 id="activeIncidentTitle">Select an incident to investigate</h2>
+            <div class="detail-desc" id="activeIncidentSummary">Review attack path graph, chronological timeline, and evidence-backed reach-next reasoning.</div>
+            <div class="detail-meta-pills" id="activeIncidentPills"></div>
+          </div>
+        </div>
+
+        <!-- Investigation Tabs -->
+        <div class="nav-tabs">
+          <button class="tab-btn active" onclick="switchTab('graphTab')">Attack Graph (NetworkX)</button>
+          <button class="tab-btn" onclick="switchTab('timelineTab')">Chronological Timeline</button>
+          <button class="tab-btn" onclick="switchTab('reachTab')">Reach-Next Reasoning (FR-6)</button>
+        </div>
+
+        <!-- Tab 1: Directed Attack Graph (FR-5) -->
+        <div class="tab-viewport active" id="graphTab">
+          <div class="graph-container">
+            <div class="graph-toolbar">
+              <button class="btn btn-secondary" onclick="resetGraphView()" title="Fit View">Fit</button>
+              <button class="btn btn-secondary" onclick="zoomGraph(1.2)" title="Zoom In">+</button>
+              <button class="btn btn-secondary" onclick="zoomGraph(0.8)" title="Zoom Out">-</button>
+            </div>
+
+            <div class="graph-legend">
+              <div class="legend-item"><div class="legend-circle" style="background:#06b6d4;"></div> Host</div>
+              <div class="legend-item"><div class="legend-circle" style="background:#10b981;"></div> User</div>
+              <div class="legend-item"><div class="legend-circle" style="background:#8b5cf6;"></div> Process</div>
+              <div class="legend-item"><div class="legend-circle" style="background:#f59e0b;"></div> Registry / File</div>
+              <div class="legend-item"><div class="legend-circle" style="background:#ef4444;"></div> Alert</div>
+              <div class="legend-item"><div class="legend-circle" style="background:#3b82f6;"></div> Network Dest</div>
+              <div class="legend-item" style="margin-left:8px;">— Observed Edge</div>
+              <div class="legend-item">- - Inferred Edge</div>
+            </div>
+
+            <div class="graph-inspector" id="graphInspector">
+              <h4 id="inspectorTitle">Node Inspector</h4>
+              <div id="inspectorContent"></div>
+            </div>
+
+            <canvas id="graphCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Tab 2: Chronological Timeline (FR-5) -->
+        <div class="tab-viewport" id="timelineTab">
+          <div class="timeline-stream" id="timelineContainer">
+            <div class="empty-state">No timeline events loaded.</div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Reach-Next Reasoning (FR-6) -->
+        <div class="tab-viewport" id="reachTab">
+          <div id="reachExplanation" style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
+            Strict verification logic distinguishes observed network activity from authenticated access and elevated permissions.
+          </div>
+          <div class="reach-grid" id="reachGridContainer">
+            <div class="empty-state">No reach-next targets observed.</div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Evidence Inspector Modal (FR-1 & FR-5) -->
+  <div class="modal-backdrop" id="evidenceModal" onclick="closeEvidenceModal(event)">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="evidenceModalTitle">Raw Evidence Record (Byte-Offset Seek)</h3>
+        <button class="close-btn" onclick="closeEvidenceModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-secondary);">
+          <div>Source File: <strong id="evidRawFile" style="color:#fff;">edr_events.json</strong></div>
+          <div>Byte Offset: <strong id="evidOffset" style="color:#fff;">0</strong> (Length: <strong id="evidLen" style="color:#fff;">0</strong> B)</div>
+        </div>
+        <div class="raw-code-block" id="evidRawJson">Loading raw disk chunk...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Application State
+    let incidents = [];
+    let selectedIncident = null;
+    let selectedIncidentPath = null;
+
+    // Graph Render State
+    let graphData = { nodes: [], edges: [] };
+    let nodePositions = {};
+    let transform = { x: 0, y: 0, scale: 1 };
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let hoveredNode = null;
+    let selectedElement = null;
+
+    const canvas = document.getElementById("graphCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Initialize application on load
+    window.addEventListener("DOMContentLoaded", () => {
+      setupCanvas();
+      fetchIncidents();
+    });
+
+    function setupCanvas() {
+      function resize() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        drawGraph();
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      canvas.addEventListener("mousedown", (e) => {
+        const mousePos = getCanvasMousePos(e);
+        const clickedNode = findNodeAt(mousePos.x, mousePos.y);
+        if (clickedNode) {
+          inspectNode(clickedNode);
+          return;
+        }
+        isDragging = true;
+        dragStart = { x: e.clientX - transform.x, y: e.clientY - transform.y };
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (isDragging) {
+          transform.x = e.clientX - dragStart.x;
+          transform.y = e.clientY - dragStart.y;
+          drawGraph();
+        } else {
+          const mousePos = getCanvasMousePos(e);
+          const node = findNodeAt(mousePos.x, mousePos.y);
+          if (node !== hoveredNode) {
+            hoveredNode = node;
+            drawGraph();
+          }
+        }
+      });
+
+      window.addEventListener("mouseup", () => {
+        isDragging = false;
+      });
+
+      canvas.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        zoomGraph(factor);
+      });
+    }
+
+    function getCanvasMousePos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.clientX - rect.left;
+      const clientY = e.clientY - rect.top;
+      return {
+        x: (clientX - transform.x) / transform.scale,
+        y: (clientY - transform.y) / transform.scale
+      };
+    }
+
+    function findNodeAt(x, y) {
+      for (const node of graphData.nodes) {
+        const pos = nodePositions[node.id];
+        if (!pos) continue;
+        const dx = x - pos.x;
+        const dy = y - pos.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= (pos.radius || 18)) {
+          return node;
+        }
+      }
+      return null;
+    }
+
+    // Fetch Incidents from REST API (FR-7)
+    async function fetchIncidents() {
+      try {
+        const res = await fetch("/api/incidents");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        incidents = await res.json();
+        updateKPIs();
+        renderIncidentList(incidents);
+
+        if (incidents.length > 0 && !selectedIncident) {
+          selectIncident(incidents[0].incident_id);
+        }
+      } catch (err) {
+        console.error("Failed to load incidents:", err);
+        document.getElementById("incidentListContainer").innerHTML = `
+          <div class="empty-state">
+            <div>⚠️ Failed to load incidents</div>
+            <div style="font-size:11px; margin-top:4px;">${err.message}</div>
+          </div>
+        `;
+      }
+    }
+
+    function updateKPIs() {
+      document.getElementById("kpiTotalIncidents").textContent = incidents.length;
+      document.getElementById("metricIncidents").textContent = incidents.length;
+
+      let crit = 0, high = 0, med = 0;
+      incidents.forEach(inc => {
+        const s = inc.severity.toLowerCase();
+        if (s === "critical") crit++;
+        else if (s === "high") high++;
+        else if (s === "medium") med++;
+      });
+
+      document.getElementById("kpiCritical").textContent = crit;
+      document.getElementById("kpiHigh").textContent = high;
+      document.getElementById("kpiMedium").textContent = med;
+    }
+
+    function renderIncidentList(items) {
+      const container = document.getElementById("incidentListContainer");
+      if (!items || items.length === 0) {
+        container.innerHTML = '<div class="empty-state">No incidents match current filter.</div>';
+        return;
+      }
+
+      container.innerHTML = items.map(inc => {
+        const activeClass = selectedIncident && selectedIncident.incident_id === inc.incident_id ? "active" : "";
+        const hostStr = (inc.hosts || []).join(", ") || "Unknown Host";
+        return `
+          <div class="incident-card ${activeClass}" onclick="selectIncident('${inc.incident_id}')">
+            <div class="card-header">
+              <span class="inc-id">${inc.incident_id}</span>
+              <span class="badge badge-${inc.severity.toLowerCase()}">${inc.severity}</span>
+            </div>
+            <div class="card-title">${escapeHtml(inc.title)}</div>
+            <div class="card-meta">
+              <span class="meta-tag">🖥️ ${escapeHtml(hostStr)}</span>
+              <span class="meta-tag">🚨 ${inc.alert_count} Alerts</span>
+              <span class="meta-tag">⏱️ ${inc.timeline_steps} Steps</span>
+              ${inc.reach_next_count > 0 ? `<span class="meta-tag" style="color:var(--accent-amber);">🌐 ${inc.reach_next_count} Reach-Next</span>` : ''}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function filterIncidents() {
+      const query = document.getElementById("searchInput").value.toLowerCase();
+      const sev = document.getElementById("severitySelect").value.toLowerCase();
+
+      const filtered = incidents.filter(inc => {
+        const matchSev = !sev || inc.severity.toLowerCase() === sev;
+        const matchText = !query ||
+          inc.title.toLowerCase().includes(query) ||
+          inc.incident_id.toLowerCase().includes(query) ||
+          (inc.hosts && inc.hosts.some(h => h.toLowerCase().includes(query))) ||
+          (inc.users && inc.users.some(u => u.toLowerCase().includes(query)));
+        return matchSev && matchText;
+      });
+
+      renderIncidentList(filtered);
+    }
+
+    // Select Incident & Load Full Path (/incidents/{id}/path)
+    async function selectIncident(incidentId) {
+      try {
+        const res = await fetch(`/incidents/${incidentId}/path`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        selectedIncidentPath = await res.json();
+        selectedIncident = selectedIncidentPath;
+
+        // Update list active highlight
+        document.querySelectorAll(".incident-card").forEach(el => {
+          el.classList.remove("active");
+        });
+        const currentCard = Array.from(document.querySelectorAll(".incident-card"))
+          .find(el => el.querySelector(".inc-id")?.textContent === incidentId);
+        if (currentCard) currentCard.classList.add("active");
+
+        renderIncidentDetail();
+      } catch (err) {
+        console.error("Failed to load incident path:", err);
+      }
+    }
+
+    function renderIncidentDetail() {
+      if (!selectedIncident) return;
+      const inc = selectedIncident;
+
+      document.getElementById("activeIncidentTitle").innerHTML = `
+        ${escapeHtml(inc.title)}
+        <span class="badge badge-${inc.severity.toLowerCase()}">${inc.severity}</span>
+        <span class="badge badge-low">Conf: ${inc.confidence}</span>
+      `;
+
+      document.getElementById("activeIncidentSummary").textContent = inc.summary || "No summary available.";
+
+      const pills = document.getElementById("activeIncidentPills");
+      pills.innerHTML = `
+        <span class="pill">🆔 ${inc.incident_id}</span>
+        <span class="pill">🖥️ Hosts: ${(inc.hosts || []).join(", ") || "None"}</span>
+        <span class="pill">👤 Users: ${(inc.users || []).join(", ") || "None"}</span>
+        <span class="pill">📅 ${inc.first_seen} → ${inc.last_seen}</span>
+      `;
+
+      // Render Graph
+      graphData = inc.graph || { nodes: [], edges: [] };
+      layoutGraph(graphData);
+      drawGraph();
+
+      // Render Timeline
+      renderTimeline(inc.timeline || []);
+
+      // Render Reach Next
+      renderReachNext(inc.reach_next || []);
+    }
+
+    // Layout Directed Graph (DAG Levels)
+    function layoutGraph(data) {
+      nodePositions = {};
+      if (!data.nodes || data.nodes.length === 0) return;
+
+      const width = canvas.width || 800;
+      const height = canvas.height || 500;
+
+      // Group by node type into visual columns
+      const typeCols = {
+        "network_dest": 0,
+        "process": 1,
+        "registry": 2,
+        "file": 2,
+        "alert": 3,
+        "host": 4,
+        "user": 1
+      };
+
+      const columns = [[], [], [], [], []];
+      data.nodes.forEach(n => {
+        const colIdx = typeCols[n.node_type] !== undefined ? typeCols[n.node_type] : 2;
+        columns[colIdx].push(n);
+      });
+
+      const colWidth = (width - 160) / 4;
+      columns.forEach((colNodes, colIdx) => {
+        const x = 80 + colIdx * colWidth;
+        const rowHeight = height / (colNodes.length + 1);
+        colNodes.forEach((node, rowIdx) => {
+          const y = (rowIdx + 1) * rowHeight;
+          nodePositions[node.id] = {
+            x: x,
+            y: y,
+            radius: node.node_type === "alert" ? 22 : 18,
+            color: getNodeColor(node.node_type)
+          };
+        });
+      });
+
+      // Center initial transform
+      transform = { x: 0, y: 0, scale: 1 };
+    }
+
+    function getNodeColor(type) {
+      switch (type) {
+        case "host": return "#06b6d4";
+        case "user": return "#10b981";
+        case "process": return "#8b5cf6";
+        case "registry": return "#f59e0b";
+        case "file": return "#f97316";
+        case "alert": return "#ef4444";
+        case "network_dest": return "#3b82f6";
+        default: return "#94a3b8";
+      }
+    }
+
+    // Render Canvas Graph
+    function drawGraph() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!graphData.nodes || graphData.nodes.length === 0) {
+        ctx.fillStyle = "#64748b";
+        ctx.font = "14px " + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = "center";
+        ctx.fillText("No graph nodes in this incident", canvas.width / 2, canvas.height / 2);
+        return;
+      }
+
+      ctx.save();
+      ctx.translate(transform.x, transform.y);
+      ctx.scale(transform.scale, transform.scale);
+
+      // Draw Edges
+      (graphData.edges || []).forEach(edge => {
+        const p1 = nodePositions[edge.source];
+        const p2 = nodePositions[edge.target];
+        if (!p1 || !p2) return;
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+
+        if (edge.is_inferred) {
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = "rgba(148, 163, 184, 0.4)";
+          ctx.lineWidth = 1.5;
+        } else {
+          ctx.setLineDash([]);
+          ctx.strokeStyle = "rgba(59, 130, 246, 0.7)";
+          ctx.lineWidth = 2;
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Draw arrow
+        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        const arrowDist = (p2.radius || 18) + 4;
+        const ax = p2.x - Math.cos(angle) * arrowDist;
+        const ay = p2.y - Math.sin(angle) * arrowDist;
+
+        ctx.fillStyle = edge.is_inferred ? "#94a3b8" : "#3b82f6";
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(ax - 8 * Math.cos(angle - Math.PI / 6), ay - 8 * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(ax - 8 * Math.cos(angle + Math.PI / 6), ay - 8 * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+
+        // Edge label
+        if (edge.relationship_type) {
+          const midX = (p1.x + p2.x) / 2;
+          const midY = (p1.y + p2.y) / 2 - 4;
+          ctx.font = "9px monospace";
+          ctx.fillStyle = edge.is_inferred ? "#64748b" : "#93c5fd";
+          ctx.textAlign = "center";
+          ctx.fillText(edge.relationship_type, midX, midY);
+        }
+      });
+
+      // Draw Nodes
+      graphData.nodes.forEach(node => {
+        const pos = nodePositions[node.id];
+        if (!pos) return;
+
+        const isHovered = hoveredNode && hoveredNode.id === node.id;
+        const r = pos.radius || 18;
+
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = pos.color;
+        ctx.shadowColor = pos.color;
+        ctx.shadowBlur = isHovered ? 15 : 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = isHovered ? "#fff" : "rgba(255, 255, 255, 0.3)";
+        ctx.lineWidth = isHovered ? 2.5 : 1.5;
+        ctx.stroke();
+
+        // Node Label
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "11px " + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = "center";
+        ctx.fillText(node.label || node.id, pos.x, pos.y + r + 14);
+      });
+
+      ctx.restore();
+    }
+
+    function inspectNode(node) {
+      const inspector = document.getElementById("graphInspector");
+      const title = document.getElementById("inspectorTitle");
+      const content = document.getElementById("inspectorContent");
+
+      title.textContent = `${node.node_type.toUpperCase()}: ${node.label}`;
+      let propHtml = `
+        <div style="margin-bottom:6px;"><strong>ID:</strong> <span style="font-family:monospace;">${escapeHtml(node.id)}</span></div>
+        <div style="margin-bottom:6px;"><strong>Type:</strong> ${node.node_type}</div>
+      `;
+
+      if (node.properties) {
+        propHtml += `<div style="margin-top:8px; border-top:1px solid #334155; padding-top:6px;"><strong>Properties:</strong></div>`;
+        for (const [k, v] of Object.entries(node.properties)) {
+          propHtml += `<div style="font-size:11px; margin-top:3px;"><span style="color:#94a3b8;">${k}:</span> <strong style="color:#fff;">${escapeHtml(String(v))}</strong></div>`;
+        }
+      }
+
+      content.innerHTML = propHtml;
+      inspector.style.display = "block";
+    }
+
+    function resetGraphView() {
+      transform = { x: 0, y: 0, scale: 1 };
+      drawGraph();
+    }
+
+    function zoomGraph(factor) {
+      transform.scale *= factor;
+      transform.scale = Math.max(0.3, Math.min(3.0, transform.scale));
+      drawGraph();
+    }
+
+    // Render Timeline Stream (FR-5)
+    function renderTimeline(events) {
+      const container = document.getElementById("timelineContainer");
+      if (!events || events.length === 0) {
+        container.innerHTML = '<div class="empty-state">No timeline events recorded.</div>';
+        return;
+      }
+
+      container.innerHTML = events.map((ev, idx) => {
+        const actor = ev.process_name ? `${ev.process_name} (PID: ${ev.process_id || 'N/A'})` : (ev.user || ev.host);
+        return `
+          <div class="timeline-node">
+            <div class="timeline-dot"></div>
+            <div class="t-header">
+              <span class="t-title">Step ${idx + 1}: ${escapeHtml(ev.action)}</span>
+              <span class="t-time">${ev.timestamp}</span>
+            </div>
+            <div class="t-body">
+              <div>🖥️ <strong>${escapeHtml(ev.host)}</strong> | 👤 <strong>${escapeHtml(actor)}</strong></div>
+              ${ev.mitre_technique_id ? `<div style="margin-top:4px;"><span class="badge badge-high">${ev.mitre_technique_id}: ${ev.mitre_technique_name}</span> <span class="pill" style="font-size:10px;">${ev.kill_chain_stage}</span></div>` : ''}
+              ${ev.process_command_line ? `<div style="margin-top:4px; font-family:monospace; font-size:11px; background:#0f172a; padding:4px 6px; border-radius:4px; color:#cbd5e1;">${escapeHtml(ev.process_command_line)}</div>` : ''}
+            </div>
+            <div>
+              <button class="t-evidence-btn" onclick="openEvidenceModal('${ev.event_id}')">
+                🔍 Inspect Raw Evidence (Offset: ${ev.byte_offset})
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // Render Reach-Next Reasoning (FR-6)
+    function renderReachNext(targets) {
+      const container = document.getElementById("reachGridContainer");
+      if (!targets || targets.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <div>🛡️ No Reachable Assets / Downstream Targets Observed</div>
+            <div style="font-size:12px; margin-top:6px;">No lateral network connections or authenticated targets were observed from this endpoint.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = targets.map(t => {
+        const isOutbound = t.verification_status === "observed_outbound_activity";
+        const pillClass = isOutbound ? "reach-status-outbound" : "reach-status-internal";
+        const statusLabel = isOutbound ? "Observed Outbound Telemetry (Access Unproven)" : "Potential Internal Connectivity";
+
+        return `
+          <div class="reach-card">
+            <div class="reach-status-pill ${pillClass}">${statusLabel}</div>
+            <div class="reach-target">${escapeHtml(t.target)}</div>
+            <div style="font-size:11px; color:var(--text-muted);">From Host: <strong>${escapeHtml(t.from_host)}</strong> | Type: ${t.target_type}</div>
+            <div class="reach-reasoning">${escapeHtml(t.reasoning)}</div>
+            ${t.evidence_references && t.evidence_references.length > 0 && t.evidence_references[0].event_id ? `
+              <button class="t-evidence-btn" style="margin-top:6px;" onclick="openEvidenceModal('${t.evidence_references[0].event_id}')">
+                🔍 Verify Provenance (Offset: ${t.evidence_references[0].byte_offset})
+              </button>
+            ` : ''}
+          </div>
+        `;
+      }).join("");
+    }
+
+    // Evidence Modal (FR-1 byte offset seeking)
+    async function openEvidenceModal(eventId) {
+      const modal = document.getElementById("evidenceModal");
+      const rawJsonEl = document.getElementById("evidRawJson");
+      rawJsonEl.textContent = "Seeking byte offset on disk...";
+      modal.style.display = "flex";
+
+      try {
+        const res = await fetch(`/api/evidence/${eventId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        document.getElementById("evidenceModalTitle").textContent = `Raw Log Provenance: Event ${eventId}`;
+        document.getElementById("evidRawFile").textContent = data.raw_file;
+        document.getElementById("evidOffset").textContent = data.byte_offset.toLocaleString();
+        document.getElementById("evidLen").textContent = data.record_length.toLocaleString();
+
+        if (data.raw_json) {
+          rawJsonEl.textContent = JSON.stringify(data.raw_json, null, 2);
+        } else {
+          rawJsonEl.textContent = data.raw_text;
+        }
+      } catch (err) {
+        rawJsonEl.textContent = `Failed to retrieve raw evidence: ${err.message}`;
+      }
+    }
+
+    function closeEvidenceModal() {
+      document.getElementById("evidenceModal").style.display = "none";
+    }
+
+    // Trigger Ingestion Pipeline via API
+    async function runIngestion() {
+      const path = document.getElementById("logPathInput").value.trim() || "edr_events.json";
+      const btn = document.getElementById("runIngestBtn");
+      const spinner = document.getElementById("ingestSpinner");
+      const statusText = document.getElementById("systemStatusText");
+
+      btn.disabled = true;
+      spinner.style.display = "inline";
+      statusText.textContent = "Processing Telemetry...";
+
+      try {
+        const res = await fetch("/api/ingest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: path })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        statusText.textContent = "Pipeline Ready";
+        alert(`Ingestion Complete!\n\nRecords Parsed: ${data.ingestion.parsed_ok.toLocaleString()}\nThroughput: ${Math.round(data.ingestion.throughput_records_per_sec).toLocaleString()} rec/sec\nPeak RAM: ${data.ingestion.peak_ram_mb.toFixed(1)} MB\nIncidents Correlated: ${data.incidents_count}`);
+
+        // Reload fresh incidents
+        await fetchIncidents();
+      } catch (err) {
+        statusText.textContent = "Ingestion Error";
+        alert(`Ingestion Failed: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = "none";
+      }
+    }
+
+    // Switch Investigation Tabs
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      document.querySelectorAll(".tab-viewport").forEach(vp => vp.classList.remove("active"));
+
+      event.target.classList.add("active");
+      const targetVp = document.getElementById(tabId);
+      if (targetVp) targetVp.classList.add("active");
+
+      if (tabId === "graphTab") {
+        setTimeout(() => {
+          setupCanvas();
+          drawGraph();
+        }, 50);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
