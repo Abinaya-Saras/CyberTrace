@@ -1,27 +1,30 @@
 """
-CyberTrace Security Detection Engine.
+CyberTrace Security Detection Engine (FR-2 & FR-3).
 
-Executes validated YAML detection rules against normalized Parquet telemetry
+Directly executes SQL detection queries against normalized Parquet telemetry
 using an embedded, resource-constrained DuckDB instance.
 
 Guiding principles:
-  - Every finding must be supported by actual log evidence.
+  - Every detection is supported by actual log evidence (event_id, raw_file, byte_offset, record_length).
   - Never invent events, relationships, or attack stages.
   - Strict separation of confidence (evidence strength) and severity (impact).
   - Accurate entity context: target of an attack != compromised entity.
   - Granular evidence provenance: preserves per-event actor, PID, and command-line.
-  - Memory-safe: zero-copy Parquet scanning, conservative limits (1 GB RAM, 2 threads).
+  - 100% of detections are mapped to official MITRE ATT&CK techniques and Cyber Kill Chain stages.
+  - No external YAML rule loaders or unnecessary abstractions.
 """
 
 from datetime import datetime, timezone
-import json
 import logging
-import os
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from backend.core.duckdb_engine import DuckDBEngine
 from backend.detection.alert_schema import Alert
-from backend.detection.rule_loader import RuleDefinition, load_rules_from_directory
+from backend.mitre.mappings import (
+    TECHNIQUE_CATALOG,
+    get_mapping,
+    validate_mitre_mapping,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +52,11 @@ def _build_evidence_refs(
     process_command_lines: Optional[list[str]] = None,
     source_ips: Optional[list[str]] = None,
     destination_ips: Optional[list[str]] = None,
+    extra: Optional[list[dict[str, Any]]] = None,
 ) -> list[dict[str, Any]]:
     """
     Build structured evidence provenance references for an alert.
-    Retains granular per-event actor, PID, and command-line metadata.
+    Retains granular per-event actor, PID, command-line, and source/destination IP metadata.
     """
     refs = []
     n = len(event_ids)
@@ -92,28 +96,35 @@ def _build_evidence_refs(
             ref["source_ip"] = str(source_ips[i])
         if destination_ips and i < len(destination_ips) and destination_ips[i]:
             ref["destination_ip"] = str(destination_ips[i])
+        if extra and i < len(extra) and extra[i]:
+            ref["extra"] = extra[i]
 
         refs.append(ref)
     return refs
 
 
 # -----------------------------------------------------------------------------
-# Detection Handlers
+# Core Detection Functions (FR-2 & FR-3)
 # -----------------------------------------------------------------------------
 
-def handle_brute_force(
+def detect_brute_force(
     engine: DuckDBEngine,
-    rule: RuleDefinition,
     view_name: str,
+    min_failures: int = 3,
+    min_failures_high_confidence: int = 6,
+    check_subsequent_success: bool = True,
 ) -> list[Alert]:
     """
-    Handler for RULE-001 (T1110 - Brute Force).
-    Identifies repeated authentication failures targeting users on a host from a source IP.
+    Detect Repeated Failed Authentications (Brute Force).
+    MITRE ATT&CK: T1110 (Brute Force) | Tactic: Credential Access | Kill Chain: Exploitation.
+
+    Identifies repeated authentication failures targeting accounts on a host from a source IP.
     Verifies whether a subsequent successful authentication occurred from the SAME source IP.
     Never claims account compromise without concrete evidence of success from the attacker's source.
     """
-    min_failures = int(rule.threshold.get("min_failures", 3))
-    min_failures_high = int(rule.parameters.get("min_failures_high_confidence", 6))
+    mapping = get_mapping("T1110")
+    if not mapping:
+        raise ValueError("Mapping for T1110 not found in catalog")
 
     sql = f"""
     SELECT
@@ -138,7 +149,7 @@ def handle_brute_force(
     ORDER BY fail_count DESC
     """
     rows = engine.query(sql, [min_failures])
-    alerts = []
+    alerts: list[Alert] = []
 
     for row in rows:
         host, user, src_ip, fail_cnt, first_seen, last_seen, eids, rfiles, boffs, rlens, tss, unames, sips = row
@@ -146,9 +157,9 @@ def handle_brute_force(
         first_iso = _format_ts(first_seen)
         last_iso = _format_ts(last_seen)
 
-        # Audit Check: Check if subsequent successful login occurred from the SAME source IP
+        # Audit Check: verify if subsequent successful login occurred from the SAME source IP
         subsequent_success_from_source = False
-        if rule.parameters.get("check_subsequent_success", True) and user and src_ip:
+        if check_subsequent_success and user and src_ip:
             succ_sql = f"""
             SELECT count(*)
             FROM {view_name}
@@ -165,14 +176,16 @@ def handle_brute_force(
 
         if subsequent_success_from_source:
             confidence = "high"
+            severity = "high"
             reasoning = (
                 f"Suspicious authentication activity: observed {fail_cnt} failed authentication attempts "
                 f"for user '{user}' on target host '{host}' from source IP '{src_ip}' between {first_iso} "
                 f"and {last_iso}, followed by a confirmed successful authentication from the SAME source IP. "
                 f"Evidence indicates probable credential compromise."
             )
-        elif fail_cnt >= min_failures_high:
+        elif fail_cnt >= min_failures_high_confidence:
             confidence = "medium"
+            severity = "medium"
             reasoning = (
                 f"High-frequency failed logon surge: observed {fail_cnt} authentication failures "
                 f"targeting user '{user}' on host '{host}' from external source IP '{src_ip}' between "
@@ -181,6 +194,7 @@ def handle_brute_force(
             )
         else:
             confidence = "medium"
+            severity = "medium"
             reasoning = (
                 f"Repeated authentication failures: observed {fail_cnt} failed logon attempts "
                 f"targeting user '{user}' on host '{host}' from source IP '{src_ip}' between {first_iso} "
@@ -193,15 +207,15 @@ def handle_brute_force(
         )
 
         alert = Alert(
-            rule_id=rule.rule_id,
+            rule_id="RULE-001",
             title=f"Suspicious Authentication Failures ({fail_cnt} attempts) on {host}",
-            description=rule.description,
-            severity=rule.severity,
+            description="Repeated failed authentications targeting accounts from an external or internal source.",
+            severity=severity,
             confidence=confidence,
-            mitre_technique_id=rule.mitre_technique_id,
-            mitre_technique_name=rule.mitre_technique_name,
-            mitre_tactic=rule.mitre_tactic,
-            kill_chain_stage=rule.kill_chain_stage,
+            mitre_technique_id=mapping.technique_id,
+            mitre_technique_name=mapping.technique_name,
+            mitre_tactic=mapping.mitre_tactic,
+            kill_chain_stage=mapping.kill_chain_stage,
             first_seen=first_iso,
             last_seen=last_iso,
             host=host,
@@ -217,23 +231,31 @@ def handle_brute_force(
     return alerts
 
 
-def handle_suspicious_process(
+def detect_suspicious_process(
     engine: DuckDBEngine,
-    rule: RuleDefinition,
     view_name: str,
+    parent_processes: Optional[list[str]] = None,
+    child_processes: Optional[list[str]] = None,
+    stealth_flags: Optional[list[str]] = None,
 ) -> list[Alert]:
     """
-    Handler for RULE-002 (T1059.001 - Suspicious Process Execution).
-    Identifies Office applications spawning PowerShell/pwsh.
-    Aggregates executions by host within the time window to prevent alert flooding
-    while preserving all execution evidence references and per-event actor/PID details.
-    """
-    parent_procs = [p.lower() for p in rule.parameters.get("parent_processes", ["winword.exe", "excel.exe"])]
-    child_procs = [p.lower() for p in rule.parameters.get("child_processes", ["powershell.exe", "pwsh.exe"])]
-    stealth_flags = [f.lower() for f in rule.parameters.get("stealth_flags", ["-enc", "-nop", "-w hidden"])]
+    Detect Suspicious Process Execution (Office Spawning PowerShell/PWSH).
+    MITRE ATT&CK: T1059.001 (PowerShell) | Tactic: Execution | Kill Chain: Exploitation.
 
-    parents_clause = ", ".join(f"'{p}'" for p in parent_procs)
-    children_clause = ", ".join(f"'{c}'" for c in child_procs)
+    Identifies Office applications spawning scripting shells.
+    Aggregates executions by host within the time window to preserve host context
+    while embedding granular per-event actor, PID, and command-line metadata in evidence references.
+    """
+    mapping = get_mapping("T1059.001")
+    if not mapping:
+        raise ValueError("Mapping for T1059.001 not found in catalog")
+
+    parents = [p.lower() for p in (parent_processes or ["winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe"])]
+    children = [c.lower() for c in (child_processes or ["powershell.exe", "pwsh.exe", "cmd.exe", "cscript.exe", "wscript.exe"])]
+    stealth = [f.lower() for f in (stealth_flags or ["-enc", "-encodedcommand", "-nop", "-noprofile", "-w hidden", "-windowstyle hidden"])]
+
+    parents_clause = ", ".join(f"'{p}'" for p in parents)
+    children_clause = ", ".join(f"'{c}'" for c in children)
 
     sql = f"""
     SELECT
@@ -261,7 +283,7 @@ def handle_suspicious_process(
     ORDER BY execution_count DESC
     """
     rows = engine.query(sql)
-    alerts = []
+    alerts: list[Alert] = []
 
     for row in rows:
         (
@@ -287,7 +309,7 @@ def handle_suspicious_process(
         last_iso = _format_ts(last_seen)
 
         has_stealth = any(
-            any(flag in (cmd or "").lower() for flag in stealth_flags)
+            any(flag in (cmd or "").lower() for flag in stealth)
             for cmd in cmd_lines
         )
 
@@ -312,7 +334,11 @@ def handle_suspicious_process(
             )
 
         evidence_refs = _build_evidence_refs(
-            eids, rfiles, boffs, rlens, tss,
+            eids,
+            rfiles,
+            boffs,
+            rlens,
+            tss,
             usernames=unames,
             process_names=[proc_name] * len(eids),
             process_ids=pids,
@@ -322,15 +348,15 @@ def handle_suspicious_process(
         )
 
         alert = Alert(
-            rule_id=rule.rule_id,
+            rule_id="RULE-002",
             title=f"Suspicious Process Execution: Office Spawned Script Engine ({parent_name} -> {proc_name}) on {host}",
-            description=rule.description,
-            severity=rule.severity,
+            description="Office productivity applications spawning command interpreters or scripting shells.",
+            severity="high",
             confidence=confidence,
-            mitre_technique_id=rule.mitre_technique_id,
-            mitre_technique_name=rule.mitre_technique_name,
-            mitre_tactic=rule.mitre_tactic,
-            kill_chain_stage=rule.kill_chain_stage,
+            mitre_technique_id=mapping.technique_id,
+            mitre_technique_name=mapping.technique_name,
+            mitre_tactic=mapping.mitre_tactic,
+            kill_chain_stage=mapping.kill_chain_stage,
             first_seen=first_iso,
             last_seen=last_iso,
             host=host,
@@ -350,23 +376,30 @@ def handle_suspicious_process(
     return alerts
 
 
-def handle_c2_beaconing(
+def detect_c2_beaconing(
     engine: DuckDBEngine,
-    rule: RuleDefinition,
     view_name: str,
+    min_connections: int = 3,
+    min_interval_seconds: float = 1.0,
+    suspicious_processes: Optional[list[str]] = None,
+    exclude_benign_domains: Optional[list[str]] = None,
 ) -> list[Alert]:
     """
-    Handler for RULE-003 (T1071.001 - C2 Beaconing).
-    Identifies repeated outbound network connections to suspicious destinations.
-    Requires sufficient observations and interval consistency.
-    """
-    min_conns = int(rule.threshold.get("min_connections", 3))
-    min_interval_sec = float(rule.parameters.get("min_interval_seconds", 1.0))
-    suspicious_procs = [p.lower() for p in rule.parameters.get("suspicious_processes", ["powershell.exe"])]
-    excluded_domains = [d.lower() for d in rule.parameters.get("exclude_benign_domains", [])]
+    Detect C2 Beaconing / Repeated Outbound Network Connections.
+    MITRE ATT&CK: T1071.001 (Web Protocols) | Tactic: Command and Control | Kill Chain: Command and Control.
 
-    procs_clause = ", ".join(f"'{p}'" for p in suspicious_procs)
-    excl_clause = ", ".join(f"'{d}'" for d in excluded_domains) if excluded_domains else "''"
+    Identifies repeated outbound network connections by suspicious scripting processes to external destinations.
+    Requires sufficient observations and non-subsecond interval consistency to distinguish genuine beaconing from bursts.
+    """
+    mapping = get_mapping("T1071.001")
+    if not mapping:
+        raise ValueError("Mapping for T1071.001 not found in catalog")
+
+    procs = [p.lower() for p in (suspicious_processes or ["powershell.exe", "pwsh.exe", "cmd.exe", "curl", "wget"])]
+    excluded = [d.lower() for d in (exclude_benign_domains or [])]
+
+    procs_clause = ", ".join(f"'{p}'" for p in procs)
+    excl_clause = ", ".join(f"'{d}'" for d in excluded) if excluded else "''"
 
     sql = f"""
     SELECT
@@ -395,8 +428,8 @@ def handle_c2_beaconing(
     HAVING count(*) >= ?
     ORDER BY conn_count DESC
     """
-    rows = engine.query(sql, [min_conns])
-    alerts = []
+    rows = engine.query(sql, [min_connections])
+    alerts: list[Alert] = []
 
     for row in rows:
         (
@@ -418,10 +451,11 @@ def handle_c2_beaconing(
             dips,
         ) = row
 
-        if delta_sec < min_interval_sec and conn_cnt < 5:
+        # Audit Check: sub-second bursts with few connections are suppressed or flagged as inconclusive
+        if delta_sec < min_interval_seconds and conn_cnt < 5:
             logger.info(
                 f"Skipping unconfirmed C2 on {host}: {conn_cnt} events within {delta_sec:.4f}s "
-                f"(requires >= {min_interval_sec}s interval or >= 5 observations)"
+                f"(requires >= {min_interval_seconds}s interval or >= 5 observations)"
             )
             continue
 
@@ -446,22 +480,26 @@ def handle_c2_beaconing(
             )
 
         evidence_refs = _build_evidence_refs(
-            eids, rfiles, boffs, rlens, tss,
+            eids,
+            rfiles,
+            boffs,
+            rlens,
+            tss,
             usernames=unames,
             process_names=[proc] * len(eids),
             destination_ips=dips,
         )
 
         alert = Alert(
-            rule_id=rule.rule_id,
+            rule_id="RULE-003",
             title=f"Suspicious Outbound Network Connections ({conn_cnt} conns to {dest_domain or dest_ip}) on {host}",
-            description=rule.description,
-            severity=rule.severity,
+            description="Repeated outbound network connections to suspicious destinations matching C2 communication patterns.",
+            severity="high",
             confidence=confidence,
-            mitre_technique_id=rule.mitre_technique_id,
-            mitre_technique_name=rule.mitre_technique_name,
-            mitre_tactic=rule.mitre_tactic,
-            kill_chain_stage=rule.kill_chain_stage,
+            mitre_technique_id=mapping.technique_id,
+            mitre_technique_name=mapping.technique_name,
+            mitre_tactic=mapping.mitre_tactic,
+            kill_chain_stage=mapping.kill_chain_stage,
             first_seen=first_iso,
             last_seen=last_iso,
             host=host,
@@ -478,23 +516,27 @@ def handle_c2_beaconing(
     return alerts
 
 
-def handle_registry_persistence(
+def detect_registry_persistence(
     engine: DuckDBEngine,
-    rule: RuleDefinition,
     view_name: str,
+    key_patterns: Optional[list[str]] = None,
+    suspicious_processes: Optional[list[str]] = None,
 ) -> list[Alert]:
     """
-    Handler for RULE-004 (T1547.001 - Registry Persistence).
+    Detect Registry Persistence (Autorun Keys).
+    MITRE ATT&CK: T1547.001 (Run Keys) | Tactic: Persistence | Kill Chain: Installation.
+
     Identifies writes/modifications to Windows Run / RunOnce keys.
-    Aggregates modifications by host within the time window.
-    Strictly filters for value modification actions (ignores read/query operations).
+    Aggregates modifications by host and registry path to preserve host-level context.
+    Strictly filters for value modification actions on autorun registry keys.
     """
-    key_patterns = rule.parameters.get(
-        "key_patterns",
-        ["%CurrentVersion\\Run%", "%CurrentVersion\\RunOnce%"],
-    )
-    suspicious_procs = [p.lower() for p in rule.parameters.get("suspicious_processes", ["powershell.exe"])]
-    pattern_conditions = " OR ".join(f"registry_path ILIKE '{pat}'" for pat in key_patterns)
+    mapping = get_mapping("T1547.001")
+    if not mapping:
+        raise ValueError("Mapping for T1547.001 not found in catalog")
+
+    patterns = key_patterns or ["%CurrentVersion\\Run%", "%CurrentVersion\\RunOnce%"]
+    suspicious_procs = [p.lower() for p in (suspicious_processes or ["powershell.exe", "pwsh.exe", "cmd.exe"])]
+    pattern_conditions = " OR ".join(f"registry_path ILIKE '{pat}'" for pat in patterns)
 
     sql = f"""
     SELECT
@@ -515,13 +557,13 @@ def handle_registry_persistence(
         list(process_name) as procs
     FROM {view_name}
     WHERE event_category = 'registry'
-      AND (event_action IN ('registry_value_set', 'change', 'creation') OR event_type IN ('change', 'creation'))
+      AND event_action IN ('registry_value_set', 'change', 'creation')
       AND ({pattern_conditions})
     GROUP BY host_name, registry_path
     ORDER BY mod_count DESC
     """
     rows = engine.query(sql)
-    alerts = []
+    alerts: list[Alert] = []
 
     for row in rows:
         host, user, proc_summary, reg_path, reg_data, mod_cnt, first_seen, last_seen, eids, rfiles, boffs, rlens, tss, unames, procs = row
@@ -532,7 +574,7 @@ def handle_registry_persistence(
         data_str = reg_data or ""
 
         is_suspicious_proc = any(sp in (sample_proc or "").lower() for sp in suspicious_procs)
-        is_suspicious_payload = any(s in data_str.lower() for s in ["appdata", "temp", ".exe", "<redacted>"])
+        is_suspicious_payload = any(s in data_str.lower() for s in ["appdata", "temp", ".exe", "<suspect_entry>"])
 
         if is_suspicious_proc or is_suspicious_payload:
             confidence = "high"
@@ -550,21 +592,25 @@ def handle_registry_persistence(
             )
 
         evidence_refs = _build_evidence_refs(
-            eids, rfiles, boffs, rlens, tss,
+            eids,
+            rfiles,
+            boffs,
+            rlens,
+            tss,
             usernames=unames,
             process_names=procs,
         )
 
         alert = Alert(
-            rule_id=rule.rule_id,
+            rule_id="RULE-004",
             title=f"Suspicious Registry Modification: Autorun Key Persistence on {host}",
-            description=rule.description,
-            severity=rule.severity,
+            description="Modifications to Windows Registry Run or RunOnce keys to achieve persistence.",
+            severity="high",
             confidence=confidence,
-            mitre_technique_id=rule.mitre_technique_id,
-            mitre_technique_name=rule.mitre_technique_name,
-            mitre_tactic=rule.mitre_tactic,
-            kill_chain_stage=rule.kill_chain_stage,
+            mitre_technique_id=mapping.technique_id,
+            mitre_technique_name=mapping.technique_name,
+            mitre_tactic=mapping.mitre_tactic,
+            kill_chain_stage=mapping.kill_chain_stage,
             first_seen=first_iso,
             last_seen=last_iso,
             host=host,
@@ -581,20 +627,25 @@ def handle_registry_persistence(
     return alerts
 
 
-def handle_mass_file_modification(
+def detect_mass_file_modification(
     engine: DuckDBEngine,
-    rule: RuleDefinition,
     view_name: str,
+    min_files: int = 2,
+    ransom_extensions: Optional[list[str]] = None,
 ) -> list[Alert]:
     """
-    Handler for RULE-005 (T1486 - Mass File Modification / Ransomware).
+    Detect Mass File Modification / Suspicious File Renames (Ransomware Behavior).
+    MITRE ATT&CK: T1486 (Data Encrypted for Impact) | Tactic: Impact | Kill Chain: Actions on Objectives.
+
     Identifies suspicious file rename bursts matching ransomware patterns.
-    Aggregates by host_name, process_name, file_extension to preserve host-level context
-    and avoid synthetic username fragmentation.
+    Aggregates by host_name, process_name, file_extension to preserve host-level context.
     """
-    min_files = int(rule.threshold.get("min_files", 2))
-    ransom_extensions = [e.lower() for e in rule.parameters.get("ransom_extensions", ["locked", "crypto"])]
-    ext_clause = ", ".join(f"'{e}'" for e in ransom_extensions)
+    mapping = get_mapping("T1486")
+    if not mapping:
+        raise ValueError("Mapping for T1486 not found in catalog")
+
+    extensions = [e.lower() for e in (ransom_extensions or ["locked", "crypto", "enc", "crypted"])]
+    ext_clause = ", ".join(f"'{e}'" for e in extensions)
 
     sql = f"""
     SELECT
@@ -624,7 +675,7 @@ def handle_mass_file_modification(
     ORDER BY file_count DESC
     """
     rows = engine.query(sql, [min_files])
-    alerts = []
+    alerts: list[Alert] = []
 
     for row in rows:
         (
@@ -665,21 +716,25 @@ def handle_mass_file_modification(
             )
 
         evidence_refs = _build_evidence_refs(
-            eids, rfiles, boffs, rlens, tss,
+            eids,
+            rfiles,
+            boffs,
+            rlens,
+            tss,
             usernames=unames,
             process_names=[proc] * len(eids),
         )
 
         alert = Alert(
-            rule_id=rule.rule_id,
+            rule_id="RULE-005",
             title=f"Suspicious File Rename Activity Consistent with Ransomware ({cnt} files) on {host}",
-            description=rule.description,
-            severity=rule.severity,
+            description="Rapid file renaming or extension changes consistent with ransomware impact staging.",
+            severity="critical",
             confidence=confidence,
-            mitre_technique_id=rule.mitre_technique_id,
-            mitre_technique_name=rule.mitre_technique_name,
-            mitre_tactic=rule.mitre_tactic,
-            kill_chain_stage=rule.kill_chain_stage,
+            mitre_technique_id=mapping.technique_id,
+            mitre_technique_name=mapping.technique_name,
+            mitre_tactic=mapping.mitre_tactic,
+            kill_chain_stage=mapping.kill_chain_stage,
             first_seen=first_iso,
             last_seen=last_iso,
             host=host,
@@ -696,77 +751,84 @@ def handle_mass_file_modification(
     return alerts
 
 
-# Registry of approved handlers
-HANDLER_REGISTRY: dict[str, Callable[[DuckDBEngine, RuleDefinition, str], list[Alert]]] = {
-    "brute_force_handler": handle_brute_force,
-    "suspicious_process_handler": handle_suspicious_process,
-    "c2_beaconing_handler": handle_c2_beaconing,
-    "registry_persistence_handler": handle_registry_persistence,
-    "mass_file_modification_handler": handle_mass_file_modification,
-}
-
-
 # -----------------------------------------------------------------------------
-# Main Detection Engine
+# Main Detection Engine Class
 # -----------------------------------------------------------------------------
 
 class DetectionEngine:
     """
-    Orchestrates execution of validated detection rules against normalized Parquet data.
+    Orchestrates execution of SQL detection rules against normalized Parquet telemetry.
+    Ensures 100% of generated alerts are mapped to valid MITRE ATT&CK techniques
+    and Cyber Kill Chain stages with verified log evidence provenance pointers.
     """
 
     def __init__(
         self,
-        rules_directory: Optional[str] = None,
         engine: Optional[DuckDBEngine] = None,
+        memory_limit: str = "1GB",
+        threads: int = 2,
     ):
-        self.engine = engine or DuckDBEngine(memory_limit="1GB", threads=2)
-        self.rules: list[RuleDefinition] = []
-        if rules_directory:
-            self.load_rules(rules_directory)
-
-    def load_rules(self, rules_directory: str) -> None:
-        """Load and validate all rules from a directory."""
-        self.rules = load_rules_from_directory(rules_directory)
-        logger.info(f"Loaded {len(self.rules)} rules from {rules_directory}")
-
-    def run_rule(self, rule: RuleDefinition, parquet_path: str) -> list[Alert]:
-        """Execute a single rule against a Parquet dataset."""
-        if not rule.enabled:
-            logger.info(f"Rule '{rule.rule_id}' is disabled. Skipping.")
-            return []
-
-        handler = HANDLER_REGISTRY.get(rule.detection_logic)
-        if not handler:
-            raise ValueError(f"No handler registered for '{rule.detection_logic}' in rule '{rule.rule_id}'")
-
-        view_name = "events_for_detection"
-        self.engine.create_parquet_view(view_name, parquet_path)
-
-        alerts = handler(self.engine, rule, view_name)
-        return alerts
+        self.engine = engine or DuckDBEngine(memory_limit=memory_limit, threads=threads)
+        self._owned_engine = engine is None
 
     def run_all(self, parquet_path: str) -> list[Alert]:
-        """Execute all enabled rules against a Parquet dataset."""
-        all_alerts: list[Alert] = []
+        """
+        Execute all 5 core detection rules against a normalized Parquet dataset.
+        Validates MITRE and Kill Chain mapping on every single alert.
+        """
         view_name = "events_for_detection"
         self.engine.create_parquet_view(view_name, parquet_path)
 
-        for rule in self.rules:
-            if not rule.enabled:
-                continue
-            handler = HANDLER_REGISTRY.get(rule.detection_logic)
-            if not handler:
-                logger.warning(f"Skipping rule '{rule.rule_id}': handler '{rule.detection_logic}' not found")
-                continue
-            alerts = handler(self.engine, rule, view_name)
-            all_alerts.extend(alerts)
+        all_alerts: list[Alert] = []
+
+        # Execute 5 rules
+        all_alerts.extend(detect_brute_force(self.engine, view_name))
+        all_alerts.extend(detect_suspicious_process(self.engine, view_name))
+        all_alerts.extend(detect_c2_beaconing(self.engine, view_name))
+        all_alerts.extend(detect_registry_persistence(self.engine, view_name))
+        all_alerts.extend(detect_mass_file_modification(self.engine, view_name))
+
+        # Enforce FR-3: 100% of generated alerts must have valid MITRE ATT&CK & Kill Chain mappings
+        for alert in all_alerts:
+            is_valid, err = validate_mitre_mapping(
+                alert.mitre_technique_id,
+                alert.mitre_technique_name,
+                alert.mitre_tactic,
+                alert.kill_chain_stage,
+            )
+            if not is_valid:
+                raise ValueError(f"Alert {alert.alert_id} has invalid MITRE/Kill-Chain mapping: {err}")
 
         return all_alerts
 
+    def detect_brute_force(self, parquet_path: str, **kwargs) -> list[Alert]:
+        view_name = "events_for_detection"
+        self.engine.create_parquet_view(view_name, parquet_path)
+        return detect_brute_force(self.engine, view_name, **kwargs)
+
+    def detect_suspicious_process(self, parquet_path: str, **kwargs) -> list[Alert]:
+        view_name = "events_for_detection"
+        self.engine.create_parquet_view(view_name, parquet_path)
+        return detect_suspicious_process(self.engine, view_name, **kwargs)
+
+    def detect_c2_beaconing(self, parquet_path: str, **kwargs) -> list[Alert]:
+        view_name = "events_for_detection"
+        self.engine.create_parquet_view(view_name, parquet_path)
+        return detect_c2_beaconing(self.engine, view_name, **kwargs)
+
+    def detect_registry_persistence(self, parquet_path: str, **kwargs) -> list[Alert]:
+        view_name = "events_for_detection"
+        self.engine.create_parquet_view(view_name, parquet_path)
+        return detect_registry_persistence(self.engine, view_name, **kwargs)
+
+    def detect_mass_file_modification(self, parquet_path: str, **kwargs) -> list[Alert]:
+        view_name = "events_for_detection"
+        self.engine.create_parquet_view(view_name, parquet_path)
+        return detect_mass_file_modification(self.engine, view_name, **kwargs)
+
     def close(self) -> None:
-        """Close internal DuckDB engine."""
-        if self.engine:
+        """Close internal DuckDB engine if owned."""
+        if self._owned_engine and self.engine:
             self.engine.close()
 
     def __enter__(self):
