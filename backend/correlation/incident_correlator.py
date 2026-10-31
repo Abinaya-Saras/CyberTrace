@@ -10,6 +10,8 @@ Guiding principles:
   - Causality Integrity: an external brute force attack with ZERO successful logins is NOT conflated
     with internal file modifications on the same host (time proximity != causality).
   - Explicit Lateral Movement Gate: cross-host merging requires evidenced network authentication or remote execution.
+  - Honest Attack-Path Labels: uses 'Multi-Stage Suspicious Activity Cluster' or 'Potential Attack Sequence'
+    when causal process ancestry between separate executables is unobserved.
   - Preserves incomplete or disconnected paths honestly (does not fabricate initial access or lateral movement).
   - 100% data-driven; no mock data or hardcoded incidents.
 """
@@ -101,8 +103,6 @@ class IncidentCorrelator:
             norm_h = normalize_host(alert.host)
             # Check if this alert is an external brute-force attempt without subsequent success
             if alert.rule_id == "RULE-001" and "confirmed successful authentication from the SAME source IP" not in alert.reasoning:
-                src_ip = normalize_ip(alert.source_ip)
-                # Group by target host and attack campaign context
                 external_bf_clusters[(norm_h, "external_bf")].append(alert)
             else:
                 endpoint_clusters[norm_h].append(alert)
@@ -202,7 +202,7 @@ class IncidentCorrelator:
             # Reconstruct Reach-Next Reasoning (FR-6)
             reach_next = evaluate_reach_next(cluster_hosts, cluster, supplementary_network)
 
-            # Formulate Title and Summary
+            # Formulate Title and Summary with honest causation semantics
             primary_host = cluster_hosts[0] if cluster_hosts else "Unknown Host"
 
             if is_bf_only:
@@ -215,26 +215,36 @@ class IncidentCorrelator:
                     f"Zero successful authentications occurred from attacker IPs; target asset remains uncompromised."
                 )
             elif "RULE-002" in rule_ids and "RULE-004" in rule_ids and "RULE-005" in rule_ids:
-                title = f"Multi-Stage Ransomware Attack on {primary_host} (Exploitation -> Installation -> Impact)"
+                title = f"Multi-Stage Suspicious Activity Cluster on {primary_host} (Execution -> Persistence -> File Renames)"
                 summary = (
-                    f"Complete multi-stage intrusion on {primary_host}: Office spawned obfuscated PowerShell "
-                    f"(Exploitation), established autorun registry persistence (Installation), and executed "
-                    f"rapid ransomware file renames (Actions on Objectives)."
+                    f"Multi-stage activity cluster observed on {primary_host}: Office spawned PowerShell "
+                    f"(Exploitation), PowerShell modified autorun registry keys (Installation), and unknown.exe "
+                    f"executed file renames to .locked (Actions on Objectives). Note: Causal linkage between "
+                    f"PowerShell and unknown.exe is not established by process ancestry telemetry; relationship "
+                    f"is an inferred temporal sequence on the same host."
                 )
-            elif "RULE-005" in rule_ids and len(rule_ids) == 1:
-                title = f"Ransomware Impact Activity on {primary_host}"
+            elif "RULE-004" in rule_ids and "RULE-005" in rule_ids:
+                title = f"Potential Attack Sequence on {primary_host} (Persistence -> File Renames)"
                 summary = (
-                    f"Suspicious mass file rename activity detected on {primary_host} consistent with ransomware impact staging."
+                    f"Observed autorun registry persistence followed by file renames to .locked on {primary_host}. "
+                    f"Note: Initial execution vector is unobserved in telemetry."
                 )
             elif "RULE-002" in rule_ids and "RULE-004" in rule_ids:
-                title = f"Suspicious Process Execution & Persistence on {primary_host}"
+                title = f"Suspicious Activity Cluster on {primary_host} (Execution -> Persistence)"
                 summary = (
-                    f"Office document spawned scripting engine followed by autorun registry persistence on {primary_host}."
+                    f"Office document spawned scripting engine followed by autorun registry persistence on {primary_host}. "
+                    f"File encryption activity was not observed on this endpoint."
                 )
             elif "RULE-002" in rule_ids and "RULE-005" in rule_ids:
-                title = f"Suspicious Execution & Ransomware File Renames on {primary_host}"
+                title = f"Potential Attack Sequence on {primary_host} (Execution -> File Renames)"
                 summary = (
-                    f"Office document spawned scripting engine followed by ransomware file renames on {primary_host}."
+                    f"Office document spawned scripting engine followed by ransomware file renames on {primary_host}. "
+                    f"Registry persistence was not observed on this endpoint."
+                )
+            elif "RULE-005" in rule_ids and len(rule_ids) == 1:
+                title = f"Suspicious File Rename Activity on {primary_host}"
+                summary = (
+                    f"Suspicious mass file rename activity detected on {primary_host} consistent with ransomware impact staging."
                 )
             else:
                 title = f"Suspicious Activity Cluster on {primary_host}"

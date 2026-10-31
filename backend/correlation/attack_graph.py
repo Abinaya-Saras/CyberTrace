@@ -2,12 +2,13 @@
 Evidence-Weighted Directed Attack Graph and Path Reconstruction (FR-5 & FR-6).
 
 Guiding principles:
-  - Uses NetworkX (nx.DiGraph) with minimal, evidence-backed abstractions.
-  - Every edge retains relationship type, direction, timestamp range, supporting event IDs,
-    evidence source, observed vs. inferred status, and evidence strength (weight).
-  - Chronological timeline reconstruction starting from available evidence (no assumed initial access).
-  - Rigorous Reach-Next reasoning (FR-6): strictly separates observed connectivity from
-    confirmed authentication and verified administrative permissions.
+  - Uses NetworkX (nx.DiGraph) enforcing strict Directed Acyclic Graph (DAG) topology.
+  - Process Node Identity: process instances are uniquely identified by (host, process_name, PID).
+    Distinct process executions with different PIDs are never falsely merged.
+  - Granular Evidence Integrity: every edge retains relationship type, direction, timestamp range,
+    supporting event IDs, evidence references, observed vs. inferred status, and weight.
+  - Strict Reach-Next Semantics (FR-6): separates observed external outbound destinations from
+    internal target reachability and verified administrative permissions.
 """
 
 from datetime import datetime
@@ -38,6 +39,22 @@ def _parse_ts(ts: Any) -> datetime:
         return datetime.fromisoformat(s)
     except Exception:
         return datetime.min
+
+
+def _get_process_node_id(host: str, proc_name: str, pid: Optional[Any], event_id: Optional[str] = None) -> str:
+    """
+    Construct unique process node ID incorporating host, executable name, and PID.
+    Different process executions with different PIDs never merge into one node.
+    If PID is missing, event_id is used to isolate the process execution instance.
+    """
+    h_str = host or "UNKNOWN"
+    p_str = (proc_name or "unknown.exe").lower()
+    if pid is not None and str(pid).isdigit():
+        return f"proc:{h_str}:{p_str}:{pid}"
+    elif event_id:
+        return f"proc:{h_str}:{p_str}:evt_{event_id[:8]}"
+    else:
+        return f"proc:{h_str}:{p_str}:unspecified"
 
 
 def build_incident_timeline(
@@ -124,10 +141,8 @@ def build_evidence_attack_graph(
 ) -> tuple[nx.DiGraph, dict[str, Any]]:
     """
     Construct an Evidence-Weighted Directed Attack Graph using NetworkX (FR-5).
-
-    Returns:
-      (graph, serialized_graph_dict)
-      The serialized dict contains 'nodes' and 'edges' ready for JSON/frontend consumption.
+    Guarantees Directed Acyclic Graph (DAG) topology.
+    Distinguishes observed facts from inferred temporal stage progression.
     """
     g = nx.DiGraph()
     nodes_map: dict[str, GraphNode] = {}
@@ -152,6 +167,12 @@ def build_evidence_attack_graph(
         first_seen: Optional[str] = None,
         last_seen: Optional[str] = None,
     ) -> None:
+        if source_id == target_id:
+            return  # Prevent self-loops
+        # Avoid duplicate edges
+        if g.has_edge(source_id, target_id):
+            return
+
         ge = GraphEdge(
             source=source_id,
             target=target_id,
@@ -173,7 +194,6 @@ def build_evidence_attack_graph(
 
     # Sort alerts chronologically
     sorted_alerts = sorted(alerts, key=lambda a: _parse_ts(a.first_seen))
-
     prev_alert_node_id: Optional[str] = None
 
     for alert in sorted_alerts:
@@ -195,18 +215,18 @@ def build_evidence_attack_graph(
             },
         )
 
-        host_id = f"host:{alert.host}" if alert.host else (f"host:{hosts[0]}" if hosts else "host:UNKNOWN")
+        host_str = alert.host or (hosts[0] if hosts else "UNKNOWN")
+        host_id = f"host:{host_str}"
         if host_id not in nodes_map and alert.host:
             add_node(host_id, "host", alert.host, {"host_name": alert.host})
 
         user_node_id: Optional[str] = None
         if alert.username:
-            # Handle possible comma-aggregated user strings
             primary_user = alert.username.split(",")[0].strip()
             user_node_id = f"user:{primary_user}"
             add_node(user_node_id, "user", primary_user, {"username": primary_user})
 
-        # Rule-specific node & edge generation
+        # Process-level node and edge building preserving PID instances
         if alert.rule_id == "RULE-001":  # Brute Force
             src_ip = alert.source_ip or "UNKNOWN_SRC"
             attacker_id = f"net:{src_ip}"
@@ -240,7 +260,7 @@ def build_evidence_attack_graph(
             add_edge(
                 attacker_id,
                 alert_node_id,
-                "TRIGGERED",
+                "TRIGGERED_DETECTION",
                 weight=1.0,
                 is_observed=True,
                 is_inferred=False,
@@ -249,171 +269,157 @@ def build_evidence_attack_graph(
             )
 
         elif alert.rule_id == "RULE-002":  # Office -> PowerShell Execution
-            parent_name = alert.parent_process_name or "winword.exe"
-            child_name = alert.process_name or "powershell.exe"
-            parent_proc_id = f"proc:{parent_name}"
-            child_proc_id = f"proc:{child_name}"
+            # Process each individual execution in evidence_references to preserve distinct PIDs
+            for ref in alert.evidence_references:
+                parent_name = ref.get("parent_process_name") or alert.parent_process_name or "winword.exe"
+                child_name = ref.get("process_name") or alert.process_name or "powershell.exe"
+                pid = ref.get("process_id")
+                ppid = ref.get("parent_process_id")
+                eid = ref.get("event_id")
 
-            add_node(parent_proc_id, "process", parent_name, {"process_name": parent_name, "is_parent": True})
-            add_node(child_proc_id, "process", child_name, {"process_name": child_name, "is_child": True})
+                parent_proc_id = _get_process_node_id(host_str, parent_name, ppid, eid)
+                child_proc_id = _get_process_node_id(host_str, child_name, pid, eid)
 
-            add_edge(
-                parent_proc_id,
-                child_proc_id,
-                "SPAWNED_PROCESS",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-                first_seen=alert.first_seen,
-                last_seen=alert.last_seen,
-            )
-            add_edge(
-                child_proc_id,
-                host_id,
-                "EXECUTED_ON",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-            )
-            add_edge(
-                child_proc_id,
-                alert_node_id,
-                "TRIGGERED",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-            )
+                p_label = f"{parent_name} (PID: {ppid})" if ppid is not None else parent_name
+                c_label = f"{child_name} (PID: {pid})" if pid is not None else child_name
+
+                add_node(parent_proc_id, "process", p_label, {"process_name": parent_name, "process_id": ppid, "is_parent": True})
+                add_node(child_proc_id, "process", c_label, {"process_name": child_name, "process_id": pid, "is_child": True})
+
+                add_edge(
+                    parent_proc_id,
+                    child_proc_id,
+                    "SPAWNED_PROCESS",
+                    weight=1.0,
+                    is_observed=True,
+                    is_inferred=False,
+                    supporting_event_ids=[eid] if eid else alert.supporting_event_ids,
+                    evidence_references=[ref],
+                    first_seen=ref.get("timestamp") or alert.first_seen,
+                    last_seen=ref.get("timestamp") or alert.last_seen,
+                )
+                add_edge(
+                    child_proc_id,
+                    host_id,
+                    "EXECUTED_ON",
+                    weight=1.0,
+                    is_observed=True,
+                    is_inferred=False,
+                    supporting_event_ids=[eid] if eid else alert.supporting_event_ids,
+                    evidence_references=[ref],
+                )
+                add_edge(
+                    child_proc_id,
+                    alert_node_id,
+                    "TRIGGERED_DETECTION",
+                    weight=1.0,
+                    is_observed=True,
+                    is_inferred=False,
+                    supporting_event_ids=[eid] if eid else alert.supporting_event_ids,
+                    evidence_references=[ref],
+                )
 
         elif alert.rule_id == "RULE-004":  # Registry Persistence
-            proc_name = alert.process_name or "powershell.exe"
-            proc_id = f"proc:{proc_name}"
-            reg_node_id = f"reg:{alert.host}:RunKey"
+            for ref in alert.evidence_references:
+                proc_name = ref.get("process_name") or alert.process_name or "powershell.exe"
+                pid = ref.get("process_id")
+                eid = ref.get("event_id")
 
-            add_node(proc_id, "process", proc_name, {"process_name": proc_name})
-            add_node(reg_node_id, "registry", "Windows Run Key", {"registry_path": "HKCU\\...\\Run"})
+                proc_id = _get_process_node_id(host_str, proc_name, pid, eid)
+                p_label = f"{proc_name} (PID: {pid})" if pid is not None else proc_name
+                reg_node_id = f"reg:{host_str}:RunKey"
 
-            add_edge(
-                proc_id,
-                reg_node_id,
-                "MODIFIED_PERSISTENCE_KEY",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-                first_seen=alert.first_seen,
-                last_seen=alert.last_seen,
-            )
-            add_edge(
-                reg_node_id,
-                host_id,
-                "INSTALLED_ON",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-            )
-            add_edge(
-                reg_node_id,
-                alert_node_id,
-                "TRIGGERED",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-            )
+                add_node(proc_id, "process", p_label, {"process_name": proc_name, "process_id": pid})
+                add_node(reg_node_id, "registry", "Windows Run Key", {"registry_path": "HKCU\\...\\Run"})
+
+                add_edge(
+                    proc_id,
+                    reg_node_id,
+                    "MODIFIED_PERSISTENCE_KEY",
+                    weight=1.0,
+                    is_observed=True,
+                    is_inferred=False,
+                    supporting_event_ids=[eid] if eid else alert.supporting_event_ids,
+                    evidence_references=[ref],
+                    first_seen=ref.get("timestamp") or alert.first_seen,
+                )
+                add_edge(
+                    reg_node_id,
+                    host_id,
+                    "INSTALLED_ON",
+                    weight=1.0,
+                    is_observed=True,
+                    is_inferred=False,
+                    supporting_event_ids=[eid] if eid else alert.supporting_event_ids,
+                    evidence_references=[ref],
+                )
+                add_edge(
+                    reg_node_id,
+                    alert_node_id,
+                    "TRIGGERED_DETECTION",
+                    weight=1.0,
+                    is_observed=True,
+                    is_inferred=False,
+                    supporting_event_ids=[eid] if eid else alert.supporting_event_ids,
+                    evidence_references=[ref],
+                )
 
         elif alert.rule_id == "RULE-005":  # Ransomware File Modification
-            proc_name = alert.process_name or "unknown.exe"
-            proc_id = f"proc:{proc_name}"
-            file_node_id = f"file:{alert.host}:.locked"
+            for ref in alert.evidence_references:
+                proc_name = ref.get("process_name") or alert.process_name or "unknown.exe"
+                pid = ref.get("process_id")
+                eid = ref.get("event_id")
 
-            add_node(proc_id, "process", proc_name, {"process_name": proc_name})
-            add_node(file_node_id, "file", "*.locked files", {"extension": "locked"})
+                proc_id = _get_process_node_id(host_str, proc_name, pid, eid)
+                p_label = f"{proc_name} (PID: {pid})" if pid is not None else proc_name
+                file_node_id = f"file:{host_str}:.locked"
 
-            add_edge(
-                proc_id,
-                file_node_id,
-                "RENAMED_FILES",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-                first_seen=alert.first_seen,
-                last_seen=alert.last_seen,
-            )
-            add_edge(
-                file_node_id,
-                host_id,
-                "LOCATED_ON",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-            )
-            add_edge(
-                file_node_id,
-                alert_node_id,
-                "TRIGGERED",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-            )
+                add_node(proc_id, "process", p_label, {"process_name": proc_name, "process_id": pid})
+                add_node(file_node_id, "file", "*.locked files", {"extension": "locked"})
 
-        elif alert.rule_id == "RULE-003":  # C2 Beaconing
-            proc_name = alert.process_name or "powershell.exe"
-            proc_id = f"proc:{proc_name}"
-            dest = alert.destination_ip or "EXTERNAL_C2"
-            dest_id = f"net:{dest}"
+                add_edge(
+                    proc_id,
+                    file_node_id,
+                    "RENAMED_FILES",
+                    weight=1.0,
+                    is_observed=True,
+                    is_inferred=False,
+                    supporting_event_ids=[eid] if eid else alert.supporting_event_ids,
+                    evidence_references=[ref],
+                    first_seen=ref.get("timestamp") or alert.first_seen,
+                )
+                add_edge(
+                    file_node_id,
+                    host_id,
+                    "LOCATED_ON",
+                    weight=1.0,
+                    is_observed=True,
+                    is_inferred=False,
+                    supporting_event_ids=[eid] if eid else alert.supporting_event_ids,
+                    evidence_references=[ref],
+                )
+                add_edge(
+                    file_node_id,
+                    alert_node_id,
+                    "TRIGGERED_DETECTION",
+                    weight=1.0,
+                    is_observed=True,
+                    is_inferred=False,
+                    supporting_event_ids=[eid] if eid else alert.supporting_event_ids,
+                    evidence_references=[ref],
+                )
 
-            add_node(proc_id, "process", proc_name, {"process_name": proc_name})
-            add_node(dest_id, "network_dest", dest, {"destination": dest})
-
-            add_edge(
-                proc_id,
-                dest_id,
-                "OUTBOUND_CONNECTION",
-                weight=0.8,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-                first_seen=alert.first_seen,
-                last_seen=alert.last_seen,
-            )
-            add_edge(
-                dest_id,
-                alert_node_id,
-                "TRIGGERED",
-                weight=1.0,
-                is_observed=True,
-                is_inferred=False,
-                supporting_event_ids=alert.supporting_event_ids,
-                evidence_references=alert.evidence_references,
-            )
-
-        # Inferred temporal progression edge between consecutive alert stages on the same host
+        # Inferred temporal progression edge between consecutive alert stages
         if prev_alert_node_id and prev_alert_node_id != alert_node_id:
             add_edge(
                 prev_alert_node_id,
                 alert_node_id,
-                "PROGRESSION_TO",
+                "INFERRED_STAGE_PROGRESSION",
                 weight=0.7,
                 is_observed=False,
                 is_inferred=True,
                 first_seen=alert.first_seen,
+                supporting_event_ids=alert.supporting_event_ids,
             )
         prev_alert_node_id = alert_node_id
 
@@ -421,33 +427,48 @@ def build_evidence_attack_graph(
     if supplementary_network_events:
         for sne in supplementary_network_events:
             proc = sne.get("process_name") or "powershell.exe"
-            proc_id = f"proc:{proc}"
+            pid = sne.get("process_id")
+            eid = sne.get("event_id")
+            host_str = sne.get("host_name") or (hosts[0] if hosts else "UNKNOWN")
+
+            proc_id = _get_process_node_id(host_str, proc, pid, eid)
+            p_label = f"{proc} (PID: {pid})" if pid is not None else proc
+
             dest = sne.get("destination_ip") or sne.get("destination_domain")
             if not dest:
                 continue
             dest_id = f"net:{dest}"
-            add_node(proc_id, "process", proc, {"process_name": proc})
+
+            add_node(proc_id, "process", p_label, {"process_name": proc, "process_id": pid})
             add_node(dest_id, "network_dest", dest, {"destination": dest})
             add_edge(
                 proc_id,
                 dest_id,
-                "OUTBOUND_CONNECTION",
+                "OUTBOUND_NETWORK_TRAFFIC",
                 weight=0.8,
                 is_observed=True,
                 is_inferred=False,
                 first_seen=sne.get("timestamp"),
-                supporting_event_ids=[sne.get("event_id")] if sne.get("event_id") else [],
+                supporting_event_ids=[eid] if eid else [],
                 evidence_references=[
                     {
-                        "event_id": sne.get("event_id"),
+                        "event_id": eid,
                         "raw_file": sne.get("raw_file", "unknown"),
                         "byte_offset": sne.get("byte_offset", 0),
                         "record_length": sne.get("record_length", 0),
                     }
                 ]
-                if sne.get("event_id")
+                if eid
                 else [],
             )
+
+    # Topological verification: ensure graph is strictly a Directed Acyclic Graph (DAG)
+    if not nx.is_directed_acyclic_graph(g):
+        logger.warning("Graph contains cycles; removing back-edges to preserve DAG topology.")
+        cycles = list(nx.simple_cycles(g))
+        for cycle in cycles:
+            if len(cycle) >= 2:
+                g.remove_edge(cycle[-1], cycle[0])
 
     serialized = {
         "nodes": [n.to_dict() for n in nodes_map.values()],
@@ -464,11 +485,12 @@ def evaluate_reach_next(
     """
     Evaluate what the attacker could potentially reach next (FR-6).
 
-    Rigorous Evidence Constraints:
-      - An observed network connection is connectivity, NOT proven access.
-      - A successful authentication provides identity access, NOT proven administrative privilege.
-      - Never infer administrative rights merely from a username containing 'admin'.
-      - Return empty list or 'unverified_connectivity' when access is unproven.
+    Rigorous Semantics:
+      - Distinguish external network activity from internal reachable assets.
+      - An outbound connection to an external IP is observed network activity, NOT proof
+        that the attacker can pivot to or reach that asset as a next target.
+      - A username containing 'administrator' does NOT prove administrative privileges.
+      - Only claim confirmed access or remote execution when telemetry supports it.
     """
     reach_assets: list[ReachNextAsset] = []
     seen_targets: set[str] = set()
@@ -476,10 +498,10 @@ def evaluate_reach_next(
     # Case 1: Infrastructure Brute Force with zero successful logons
     is_brute_force_only = all(a.rule_id == "RULE-001" for a in alerts)
     if is_brute_force_only:
-        # Attacker failed password guessing; 0 access obtained
+        # Zero successful authentications; attacker gained no access
         return []
 
-    # Case 2: Observed outbound connections from compromised processes
+    # Case 2: Observed outbound connections from endpoint processes
     if supplementary_network_events:
         for sne in supplementary_network_events:
             dest_ip = sne.get("destination_ip")
@@ -492,53 +514,63 @@ def evaluate_reach_next(
             src_host = sne.get("host_name") or (hosts[0] if hosts else "UNKNOWN")
             proc = sne.get("process_name") or "powershell.exe"
 
-            # Strict FR-6 distinction: observed outbound traffic is connectivity only
-            reach_assets.append(
-                ReachNextAsset(
-                    target=target,
-                    target_type="ip" if dest_ip else "domain",
-                    from_host=src_host,
-                    relationship="observed_network_connection",
-                    verification_status="unverified_connectivity",
-                    confidence="medium",
-                    reasoning=(
-                        f"Observed outbound network traffic from process '{proc}' on compromised host '{src_host}' "
-                        f"to external destination '{target}'. Destination connectivity is observed; however, "
-                        f"access rights, authentication, and administrative privileges are unverified."
-                    ),
-                    evidence_event_ids=[sne.get("event_id")] if sne.get("event_id") else [],
-                    evidence_references=[
-                        {
-                            "event_id": sne.get("event_id"),
-                            "raw_file": sne.get("raw_file", "unknown"),
-                            "byte_offset": sne.get("byte_offset", 0),
-                            "record_length": sne.get("record_length", 0),
-                        }
-                    ]
-                    if sne.get("event_id")
-                    else [],
-                )
-            )
+            # Check if destination is internal RFC 1918 or external
+            is_internal = False
+            if dest_ip:
+                is_internal = dest_ip.startswith("10.") or dest_ip.startswith("192.168.") or dest_ip.startswith("172.16.")
 
-    # Check alert evidence references for network connections if not supplied separately
-    if not reach_assets:
-        for alert in alerts:
-            if alert.destination_ip and alert.destination_ip not in seen_targets:
-                seen_targets.add(alert.destination_ip)
+            if is_internal:
                 reach_assets.append(
                     ReachNextAsset(
-                        target=alert.destination_ip,
-                        target_type="ip",
-                        from_host=alert.host or (hosts[0] if hosts else "UNKNOWN"),
-                        relationship="observed_network_connection",
-                        verification_status="unverified_connectivity",
+                        target=target,
+                        target_type="internal_ip",
+                        from_host=src_host,
+                        relationship="observed_internal_connectivity",
+                        verification_status="potential_internal_connectivity",
                         confidence="medium",
                         reasoning=(
-                            f"Observed network connection from '{alert.host}' to destination IP '{alert.destination_ip}'. "
-                            f"Potential connectivity established; confirmed access rights and privileges are unverified."
+                            f"Observed internal network connection from host '{src_host}' to internal destination '{target}'. "
+                            f"Internal connectivity observed; remote authentication and access permissions remain unverified."
                         ),
-                        evidence_event_ids=alert.supporting_event_ids,
-                        evidence_references=alert.evidence_references,
+                        evidence_event_ids=[sne.get("event_id")] if sne.get("event_id") else [],
+                        evidence_references=[
+                            {
+                                "event_id": sne.get("event_id"),
+                                "raw_file": sne.get("raw_file", "unknown"),
+                                "byte_offset": sne.get("byte_offset", 0),
+                                "record_length": sne.get("record_length", 0),
+                            }
+                        ]
+                        if sne.get("event_id")
+                        else [],
+                    )
+                )
+            else:
+                # External outbound network activity (C2 / external destination)
+                reach_assets.append(
+                    ReachNextAsset(
+                        target=target,
+                        target_type="external_destination",
+                        from_host=src_host,
+                        relationship="observed_outbound_destination",
+                        verification_status="observed_outbound_activity",
+                        confidence="medium",
+                        reasoning=(
+                            f"Observed outbound network traffic from process '{proc}' on host '{src_host}' "
+                            f"to external destination '{target}'. This represents observed external network activity, "
+                            f"NOT confirmed internal pivot reachability or target access."
+                        ),
+                        evidence_event_ids=[sne.get("event_id")] if sne.get("event_id") else [],
+                        evidence_references=[
+                            {
+                                "event_id": sne.get("event_id"),
+                                "raw_file": sne.get("raw_file", "unknown"),
+                                "byte_offset": sne.get("byte_offset", 0),
+                                "record_length": sne.get("record_length", 0),
+                            }
+                        ]
+                        if sne.get("event_id")
+                        else [],
                     )
                 )
 

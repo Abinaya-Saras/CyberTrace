@@ -3,8 +3,8 @@ Data models for CyberTrace Incident Correlation and Attack Graph (FR-4, FR-5, FR
 
 Guiding principles:
   - Every relationship and timeline step retains concrete log evidence provenance.
-  - Distinguishes observed facts from inferred relationships.
-  - Distinguishes observed network connectivity from confirmed access rights.
+  - Strictly distinguishes observed facts (process ancestry, file actions) from inferred temporal relationships.
+  - Strictly distinguishes observed external network destinations from internal reachable assets and confirmed access rights.
   - Purely JSON-serializable for simple API consumption.
 """
 
@@ -48,17 +48,17 @@ class ReachNextAsset:
     Evidence-based next reachable asset reasoning (FR-6).
 
     Strict verification status values:
-      - 'unverified_connectivity': Observed network traffic to destination, but authentication
-        and administrative permissions are unverified.
-      - 'authenticated_only': Confirmed successful authentication observed, but administrative
-        privileges or access rights are unverified.
-      - 'confirmed_access': Confirmed administrative execution or verified group membership.
+      - 'observed_outbound_activity': Outbound network traffic to an external destination was observed.
+        This represents external network activity, NOT confirmed internal target reachability or access rights.
+      - 'potential_internal_connectivity': Observed network traffic to an internal destination, but unauthenticated.
+      - 'authenticated_only': Confirmed successful authentication observed on remote host, but privileges are unverified.
+      - 'confirmed_access': Confirmed execution or verified administrative permissions on target asset.
     """
     target: str
-    target_type: str  # 'ip', 'host', 'domain'
+    target_type: str  # 'internal_host', 'internal_ip', 'external_destination'
     from_host: str
-    relationship: str  # 'observed_network_connection', 'successful_authentication', etc.
-    verification_status: str  # 'unverified_connectivity', 'authenticated_only', 'confirmed_access'
+    relationship: str  # 'observed_outbound_destination', 'potential_internal_connectivity', 'successful_authentication'
+    verification_status: str  # 'observed_outbound_activity', 'potential_internal_connectivity', 'authenticated_only', 'confirmed_access'
     confidence: str  # 'high', 'medium', 'low'
     reasoning: str
     evidence_event_ids: list[str] = field(default_factory=list)
