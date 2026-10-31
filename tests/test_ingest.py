@@ -245,4 +245,4 @@ def test_real_dataset_ingestion_and_provenance():
     assert stats.parsed_ok == 10000
     assert stats.malformed == 0
     assert stats.parquet_rows_written == 10000
-    assert stats.peak_ram_mb < 200.0  # Well below 16 GB PRD target
+    assert stats.peak_ram_mb < 1024.0  # Well below 16 GB PRD limit

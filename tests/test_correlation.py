@@ -1,105 +1,78 @@
 """
-Unit and Integration Tests for CyberTrace Phase 3 Correlation Engine.
+Comprehensive test suite for CyberTrace Incident Correlation & Attack Graph (FR-4, FR-5, FR-6).
 
-Tests cover:
-  1. Reserved IP and TEST-NET classification (RFC 5737, RFC 1918, etc.)
-  2. Exact host matching (positive and negative)
-  3. Different users on the same host (actor separation)
-  4. Shared user on same host vs across distinct hosts
-  5. Shared IP correlation and TEST-NET infrastructure handling
-  6. Valid and invalid PID parent-child relationships
-  7. Timestamp compression and sub-second proximity handling
-  8. Out-of-order event ordering handling
-  9. Weak vs strong relationship confidence rules
-  10. Missing evidence and validation error handling
-  11. Disconnected graph components and isolated node identification
-  12. Duplicate relationship deduplication
-  13. Evidence provenance preservation
-  14. Critical check: 22 shared hosts (RULE-002 & RULE-004) are NOT labeled confirmed campaign
-  15. Cross-source FortiGate integration (positive with mock and negative with real incomplete log)
-  16. End-to-end integration test against 90 Phase 2 alerts
+Tests cover all required scenarios:
+  1. Events that should belong to the same incident (same host multi-stage attack).
+  2. Events that must remain separate (distinct endpoints).
+  3. Same username appearing on different hosts (no artificial cross-host merging).
+  4. Same IP appearing in unrelated activity (infrastructure reuse vs host intrusion).
+  5. Temporal ordering of timeline events.
+  6. Successful versus failed authentication handling in reach-next.
+  7. Missing and sparse identity fields resilience.
+  8. Unsupported cross-host relationships rejected.
+  9. Cycles and duplicate relationships deduplication.
+  10. Incomplete attack paths preserved honestly (no fabricated initial access or impact).
+  11. Observed connectivity versus confirmed access (FR-6 verification status).
+  12. End-to-end correlation integration test on normalized EDR dataset.
 """
 
+from datetime import datetime, timedelta, timezone
+import json
 import os
+import uuid
+
 import pytest
 
-from backend.correlation.confidence import (
-    IPClassification,
-    classify_ip,
-    evaluate_confidence,
-    is_test_net_ip,
-)
-from backend.correlation.correlation_engine import CorrelationEngine
-from backend.correlation.correlation_rules import (
-    BehavioralSequenceCorrelator,
-    CrossSourceCorrelator,
-    HostCorrelator,
-    NetworkCorrelator,
-    ProcessCorrelator,
-    TemporalCorrelator,
-    UserCorrelator,
-)
-from backend.correlation.entity_extractor import EntityExtractor
-from backend.correlation.graph_builder import EvidenceGraph, GraphBuilder
-from backend.correlation.relationship_schema import (
-    ConfidenceLevel,
-    CorrelationDimension,
-    ObservationStatus,
-    Relationship,
-    RelationshipType,
-)
+from backend.core.duckdb_engine import DuckDBEngine
 from backend.detection.alert_schema import Alert
+from backend.correlation.attack_graph import (
+    build_evidence_attack_graph,
+    build_incident_timeline,
+    evaluate_reach_next,
+)
+from backend.correlation.incident_correlator import (
+    IncidentCorrelator,
+    normalize_host,
+    normalize_ip,
+    normalize_user,
+)
+from backend.correlation.models import Incident, ReachNextAsset, TimelineEvent
 
 
 # -----------------------------------------------------------------------------
-# Fixtures & Mock Helpers
+# Fixtures & Helpers
 # -----------------------------------------------------------------------------
 
 def make_alert(
     rule_id: str,
     host: str,
     username: str,
-    alert_id: str,
-    first_seen: str = "2026-10-31T12:39:55.000000+05:30",
-    last_seen: str = "2026-10-31T12:39:55.010000+05:30",
+    technique_id: str,
+    technique_name: str,
+    tactic: str,
+    kill_chain: str,
+    severity: str = "high",
+    confidence: str = "high",
+    first_seen: str = "2026-10-31T12:00:00Z",
+    last_seen: str = "2026-10-31T12:05:00Z",
     source_ip: str = None,
     destination_ip: str = None,
     process_name: str = None,
-    process_id: int = None,
     parent_process_name: str = None,
-    parent_process_id: int = None,
-    kill_chain_stage: str = "Execution",
-    supporting_event_ids: list[str] = None,
-    evidence_references: list[dict] = None,
+    reasoning: str = "Test reasoning",
 ) -> Alert:
-    """Helper to construct valid Alert instances for testing."""
-    eids = supporting_event_ids or [f"ev-{alert_id}-1"]
-    refs = evidence_references or [
-        {
-            "event_id": eids[0],
-            "raw_file": "edr_events.json",
-            "byte_offset": 1000,
-            "record_length": 500,
-            "timestamp": first_seen,
-            "username": username,
-            "process_name": process_name,
-            "process_id": process_id,
-            "parent_process_name": parent_process_name,
-            "parent_process_id": parent_process_id,
-            "source_ip": source_ip,
-            "destination_ip": destination_ip,
-        }
-    ]
+    """Helper to construct valid Alert instances with evidence references."""
+    eid = f"evt-{uuid.uuid4().hex[:8]}"
     return Alert(
         rule_id=rule_id,
         title=f"Test Alert {rule_id} on {host}",
-        description="Test alert description",
-        severity="high",
-        confidence="high",
-        mitre_technique_id="T1059.001",
-        mitre_technique_name="PowerShell",
-        mitre_tactic="Execution",
-        kill_chain_stage=kill_chain_stage,
+        description="Test description",
+        severity=severity,
+        confidence=confidence,
+        mitre_technique_id=technique_id,
+        mitre_technique_name=technique_name,
+        mitre_tactic=tactic,
+        kill_chain_stage=kill_chain,
         first_seen=first_seen,
         last_seen=last_seen,
         host=host,
@@ -107,668 +80,410 @@ def make_alert(
         source_ip=source_ip,
         destination_ip=destination_ip,
         process_name=process_name,
-        process_id=process_id,
         parent_process_name=parent_process_name,
-        parent_process_id=parent_process_id,
-        supporting_event_ids=eids,
-        evidence_references=refs,
-        reasoning="Test alert reasoning",
-        alert_id=alert_id,
+        supporting_event_ids=[eid],
+        evidence_references=[
+            {
+                "event_id": eid,
+                "raw_file": "test.json",
+                "byte_offset": 100,
+                "record_length": 80,
+                "timestamp": first_seen,
+                "username": username,
+                "process_name": process_name,
+                "parent_process_name": parent_process_name,
+                "source_ip": source_ip,
+                "destination_ip": destination_ip,
+            }
+        ],
+        reasoning=reasoning,
     )
 
 
 # -----------------------------------------------------------------------------
-# 1. Reserved IP and TEST-NET Classification Tests
+# 1. Entity Resolution Unit Tests
 # -----------------------------------------------------------------------------
 
-def test_reserved_ip_classification():
-    """Verify IP classification accurately identifies RFC 5737 TEST-NET blocks, RFC 1918, etc."""
-    # RFC 5737 TEST-NET-1, 2, 3
-    test_nets = ["192.0.2.88", "198.51.100.23", "203.0.113.57"]
-    for ip in test_nets:
-        res = classify_ip(ip)
-        assert res["classification"] == IPClassification.TEST_NET_DOCUMENTATION
-        assert res["is_test_net"] is True
-        assert res["is_public"] is False
-        assert is_test_net_ip(ip) is True
+def test_entity_resolution_helpers():
+    """Verify entity normalization handles domains, whitespace, cases, and None."""
+    assert normalize_host("ws-sales-011") == "WS-SALES-011"
+    assert normalize_host("  SRV-DC-01  ") == "SRV-DC-01"
+    assert normalize_host(None) == "UNKNOWN_HOST"
 
-    # RFC 1918 Private
-    privates = ["10.0.1.5", "172.16.5.10", "192.168.1.1"]
-    for ip in privates:
-        res = classify_ip(ip)
-        assert res["classification"] == IPClassification.RFC1918_PRIVATE
-        assert res["is_private"] is True
-        assert res["is_test_net"] is False
+    assert normalize_user("CORP\\asharma") == "asharma"
+    assert normalize_user("admin@corp.local") == "admin"
+    assert normalize_user("  pmehta  ") == "pmehta"
+    assert normalize_user(None) == "unknown_user"
 
-    # Loopback
-    res = classify_ip("127.0.0.1")
-    assert res["classification"] == IPClassification.LOOPBACK
-
-    # Public Routable
-    res = classify_ip("8.8.8.8")
-    assert res["classification"] == IPClassification.PUBLIC_ROUTABLE
-    assert res["is_public"] is True
-    assert res["is_test_net"] is False
-
-    # Invalid / Null
-    assert classify_ip(None)["classification"] == IPClassification.INVALID
-    assert classify_ip("not-an-ip")["classification"] == IPClassification.INVALID
+    assert normalize_ip("  192.168.1.1  ") == "192.168.1.1"
+    assert normalize_ip(None) == "UNKNOWN_IP"
 
 
 # -----------------------------------------------------------------------------
-# 2. Host Matching Tests (Positive and Negative)
+# 2. Same-Host Multi-Stage Clustering & Distinct Host Isolation
 # -----------------------------------------------------------------------------
 
-def test_exact_host_matching_positive_and_negative():
-    """Verify SAME_HOST connects alerts on the same host across rules, but ignores different hosts."""
-    a1 = make_alert("RULE-002", "WS-HR-01", "alice", "a1")
-    a2 = make_alert("RULE-004", "WS-HR-01", "alice", "a2")
-    a3 = make_alert("RULE-002", "WS-FIN-02", "bob", "a3")
-
-    extractor = EntityExtractor([a1, a2, a3])
-    correlator = HostCorrelator()
-    rels = correlator.correlate(extractor)
-
-    # a1 and a2 share host WS-HR-01
-    assert len(rels) == 1
-    rel = rels[0]
-    assert rel.relationship_type == RelationshipType.SAME_HOST
-    assert rel.evidence["host"] == "WS-HR-01"
-    assert rel.source_observation_id == "a1"
-    assert rel.target_observation_id == "a2"
-
-    # a3 on WS-FIN-02 has no partners on that host
-    assert not any(r.evidence["host"] == "WS-FIN-02" for r in rels)
-
-
-# -----------------------------------------------------------------------------
-# 3. User Separation Tests
-# -----------------------------------------------------------------------------
-
-def test_different_users_on_same_host():
-    """Verify different users on the same host produce SAME_HOST with low confidence and NO SAME_USER."""
-    a1 = make_alert("RULE-002", "WS-HR-01", "alice", "a1")
-    a2 = make_alert("RULE-004", "WS-HR-01", "bob", "a2")
-
-    extractor = EntityExtractor([a1, a2])
-    host_corr = HostCorrelator()
-    user_corr = UserCorrelator()
-
-    host_rels = host_corr.correlate(extractor)
-    user_rels = user_corr.correlate(extractor)
-
-    assert len(host_rels) == 1
-    assert host_rels[0].confidence == ConfidenceLevel.LOW
-    assert host_rels[0].evidence["shared_user"] is False
-    assert "disjoint user accounts" in host_rels[0].explanation
-
-    # No SAME_USER relationship because users differ
-    assert len(user_rels) == 0
-
-
-# -----------------------------------------------------------------------------
-# 4. User Correlation Tests (Same Host vs Cross-Host)
-# -----------------------------------------------------------------------------
-
-def test_shared_user_same_host_vs_different_hosts():
-    """Verify shared user on same host has medium confidence; across distinct hosts has low confidence."""
-    a1 = make_alert("RULE-002", "WS-01", "charlie", "a1")
-    a2 = make_alert("RULE-004", "WS-01", "charlie", "a2")
-    a3 = make_alert("RULE-002", "WS-02", "charlie", "a3")
-
-    extractor = EntityExtractor([a1, a2, a3])
-    correlator = UserCorrelator()
-    rels = correlator.correlate(extractor)
-
-    # 3 pairs: (a1, a2), (a1, a3), (a2, a3)
-    assert len(rels) == 3
-
-    same_host_rel = next(r for r in rels if r.evidence["same_host"])
-    diff_host_rel = next(r for r in rels if not r.evidence["same_host"])
-
-    assert same_host_rel.confidence == ConfidenceLevel.MEDIUM
-    assert diff_host_rel.confidence == ConfidenceLevel.LOW
-    assert "no network lateral movement" in diff_host_rel.explanation
-
-
-# -----------------------------------------------------------------------------
-# 5. Shared IP and TEST-NET Correlation Tests
-# -----------------------------------------------------------------------------
-
-def test_shared_ip_correlation_and_test_net_handling():
-    """Verify shared IP across alerts generates SAME_SOURCE_IP with RFC 5737 documentation note."""
-    a1 = make_alert("RULE-001", "SRV-DC-01", "user1", "a1", source_ip="203.0.113.57")
-    a2 = make_alert("RULE-001", "SRV-DC-01", "user2", "a2", source_ip="203.0.113.57")
-
-    extractor = EntityExtractor([a1, a2])
-    correlator = NetworkCorrelator()
-    rels = correlator.correlate(extractor)
-
-    assert len(rels) == 1
-    rel = rels[0]
-    assert rel.relationship_type == RelationshipType.SAME_SOURCE_IP
-    assert rel.evidence["is_test_net"] is True
-    assert rel.confidence == ConfidenceLevel.LOW
-    assert rel.is_investigation_eligible is False
-    assert "TEST-NET" in rel.explanation
-
-
-# -----------------------------------------------------------------------------
-# 6. Process Parent-Child and Process Identity Tests
-# -----------------------------------------------------------------------------
-
-def test_process_valid_and_invalid_pid_relationships():
-    """Verify valid PID/PPID match generates PARENT_CHILD_PROCESS (HIGH); mismatched PIDs do not."""
-    # Positive: Parent has PID 5000, Child has parent_process_id 5000 on same host
-    p1 = make_alert("RULE-002", "WS-01", "user", "p1", process_name="winword.exe", process_id=5000)
-    c1 = make_alert("RULE-002", "WS-01", "user", "c1", process_name="powershell.exe", process_id=6000, parent_process_id=5000)
-
-    # Negative: Child has parent_process_id 9999 (no match)
-    c2 = make_alert("RULE-004", "WS-01", "user", "c2", process_name="powershell.exe", process_id=7000, parent_process_id=9999)
-
-    extractor = EntityExtractor([p1, c1, c2])
-    correlator = ProcessCorrelator()
-    rels = correlator.correlate(extractor)
-
-    parent_child_rels = [r for r in rels if r.relationship_type == RelationshipType.PARENT_CHILD_PROCESS]
-    assert len(parent_child_rels) == 1
-    rel = parent_child_rels[0]
-    assert rel.confidence == ConfidenceLevel.HIGH
-    assert rel.source_observation_id == "p1"
-    assert rel.target_observation_id == "c1"
-    assert rel.evidence["pid_match"] is True
-
-    # Check SAME_PROCESS_IMAGE for c1 and c2 (both powershell.exe on WS-01, but PIDs differ)
-    same_img_rels = [r for r in rels if r.relationship_type == RelationshipType.SAME_PROCESS_IMAGE]
-    assert len(same_img_rels) == 1
-    sp_rel = same_img_rels[0]
-    assert sp_rel.confidence == ConfidenceLevel.MEDIUM
-    assert sp_rel.evidence["same_pid"] is False
-    assert "separate execution instances" in sp_rel.explanation
-
-    # Negative check: Must NOT be SAME_PROCESS because PIDs are different
-    assert not any(r.relationship_type == RelationshipType.SAME_PROCESS for r in rels)
-
-
-# -----------------------------------------------------------------------------
-# 7. Timestamp Compression Tests
-# -----------------------------------------------------------------------------
-
-def test_timestamp_compression_handling():
-    """Verify sub-second temporal proximity produces TEMPORALLY_NEAR with LOW confidence and synthetic caveat."""
-    t1 = "2026-10-31T12:39:55.000000+05:30"
-    t2 = "2026-10-31T12:39:55.005000+05:30"  # 5 ms later
-    a1 = make_alert("RULE-002", "WS-01", "user", "a1", first_seen=t1)
-    a2 = make_alert("RULE-004", "WS-01", "user", "a2", first_seen=t2)
-
-    extractor = EntityExtractor([a1, a2])
-    correlator = TemporalCorrelator(time_window_ms=50.0)
-    rels = correlator.correlate(extractor)
-
-    assert len(rels) == 1
-    rel = rels[0]
-    assert rel.relationship_type == RelationshipType.TEMPORALLY_NEAR
-    assert rel.confidence == ConfidenceLevel.LOW
-    assert rel.evidence["delta_ms"] == pytest.approx(5.0, 0.1)
-    assert "synthetic dataset" in rel.explanation
-
-
-# -----------------------------------------------------------------------------
-# 8. Out-of-Order Timestamp Handling Tests
-# -----------------------------------------------------------------------------
-
-def test_out_of_order_events():
-    """Verify engine handles out-of-order / inverted timestamps safely without crashing or negative deltas."""
-    t_later = "2026-10-31T12:39:55.050000+05:30"
-    t_earlier = "2026-10-31T12:39:55.010000+05:30"
-    a1 = make_alert("RULE-002", "WS-01", "user", "a1", first_seen=t_later)
-    a2 = make_alert("RULE-004", "WS-01", "user", "a2", first_seen=t_earlier)
-
-    extractor = EntityExtractor([a1, a2])
-    correlator = HostCorrelator()
-    rels = correlator.correlate(extractor)
-
-    assert len(rels) == 1
-    delta = rels[0].evidence["delta_ms"]
-    assert delta >= 0.0
-    assert delta == pytest.approx(40.0, 0.1)
-
-
-# -----------------------------------------------------------------------------
-# 9. Confidence Rules Validation Tests
-# -----------------------------------------------------------------------------
-
-def test_weak_versus_strong_relationship_confidence():
-    """Verify confidence rules adhere to guidelines and never upgrade weak associations."""
-    # Process parent-child with PID match -> HIGH
-    conf, _ = evaluate_confidence(
-        rel_type=RelationshipType.PARENT_CHILD_PROCESS,
-        dimension=CorrelationDimension.PROCESS,
-        evidence={"pid_match": True, "same_host": True},
+def test_same_host_multi_stage_incident():
+    """Detections on the same host across attack stages correctly cluster into a single incident."""
+    a1 = make_alert(
+        rule_id="RULE-002",
+        host="WS-001",
+        username="alice",
+        technique_id="T1059.001",
+        technique_name="PowerShell",
+        tactic="Execution",
+        kill_chain="Exploitation",
+        process_name="powershell.exe",
+        parent_process_name="winword.exe",
+        first_seen="2026-10-31T12:00:00Z",
     )
-    assert conf == ConfidenceLevel.HIGH
-
-    # Process parent-child without PID match -> INSUFFICIENT
-    conf, _ = evaluate_confidence(
-        rel_type=RelationshipType.PARENT_CHILD_PROCESS,
-        dimension=CorrelationDimension.PROCESS,
-        evidence={"pid_match": False, "same_host": True},
+    a2 = make_alert(
+        rule_id="RULE-004",
+        host="WS-001",
+        username="alice",
+        technique_id="T1547.001",
+        technique_name="Registry Run Keys",
+        tactic="Persistence",
+        kill_chain="Installation",
+        process_name="powershell.exe",
+        first_seen="2026-10-31T12:01:00Z",
     )
-    assert conf == ConfidenceLevel.INSUFFICIENT
-
-    # Host co-occurrence without shared user -> LOW
-    conf, _ = evaluate_confidence(
-        rel_type=RelationshipType.SAME_HOST,
-        dimension=CorrelationDimension.HOST,
-        evidence={"shared_user": False, "host": "WS-01"},
+    a3 = make_alert(
+        rule_id="RULE-005",
+        host="WS-001",
+        username="alice",
+        technique_id="T1486",
+        technique_name="Data Encrypted for Impact",
+        tactic="Impact",
+        kill_chain="Actions on Objectives",
+        severity="critical",
+        process_name="unknown.exe",
+        first_seen="2026-10-31T12:02:00Z",
     )
-    assert conf == ConfidenceLevel.LOW
+
+    correlator = IncidentCorrelator()
+    incidents = correlator.correlate([a1, a2, a3])
+
+    assert len(incidents) == 1
+    inc = incidents[0]
+    assert inc.hosts == ["WS-001"]
+    assert inc.severity == "critical"
+    assert len(inc.alerts) == 3
+    assert "Multi-Stage Ransomware Attack" in inc.title
+
+
+def test_distinct_hosts_must_remain_separate():
+    """Detections on distinct hosts must remain two separate incidents."""
+    a1 = make_alert(
+        rule_id="RULE-002",
+        host="WS-001",
+        username="alice",
+        technique_id="T1059.001",
+        technique_name="PowerShell",
+        tactic="Execution",
+        kill_chain="Exploitation",
+    )
+    a2 = make_alert(
+        rule_id="RULE-002",
+        host="WS-002",
+        username="bob",
+        technique_id="T1059.001",
+        technique_name="PowerShell",
+        tactic="Execution",
+        kill_chain="Exploitation",
+    )
+
+    correlator = IncidentCorrelator()
+    incidents = correlator.correlate([a1, a2])
+
+    assert len(incidents) == 2
+    hosts = {inc.hosts[0] for inc in incidents}
+    assert hosts == {"WS-001", "WS-002"}
 
 
 # -----------------------------------------------------------------------------
-# 10. Schema Validation Tests
+# 3. Same User on Different Hosts (No Artificial Merging)
 # -----------------------------------------------------------------------------
 
-def test_missing_evidence_references_validation():
-    """Verify Relationship dataclass rejects invalid confidence or empty explanations."""
-    with pytest.raises(ValueError):
-        Relationship(
-            source_observation_id="a1",
-            target_observation_id="a2",
-            relationship_type=RelationshipType.SAME_HOST,
-            correlation_dimension=CorrelationDimension.HOST,
-            evidence={},
-            confidence="INVALID_CONFIDENCE",
-            explanation="explanation",
-            observed_or_inferred=ObservationStatus.OBSERVED,
-            timestamp_context={},
-        )
+def test_same_username_on_different_hosts_not_merged():
+    """Critical: User 'Administrator' or shared user on different hosts must NOT merge into a single incident."""
+    a1 = make_alert(
+        rule_id="RULE-002",
+        host="WS-FIN-01",
+        username="Administrator",
+        technique_id="T1059.001",
+        technique_name="PowerShell",
+        tactic="Execution",
+        kill_chain="Exploitation",
+    )
+    a2 = make_alert(
+        rule_id="RULE-002",
+        host="WS-HR-01",
+        username="Administrator",
+        technique_id="T1059.001",
+        technique_name="PowerShell",
+        tactic="Execution",
+        kill_chain="Exploitation",
+    )
 
-    with pytest.raises(ValueError):
-        Relationship(
-            source_observation_id="a1",
-            target_observation_id="a2",
-            relationship_type=RelationshipType.SAME_HOST,
-            correlation_dimension=CorrelationDimension.HOST,
-            evidence={},
-            confidence=ConfidenceLevel.LOW,
-            explanation="",  # Empty explanation rejected
-            observed_or_inferred=ObservationStatus.OBSERVED,
-            timestamp_context={},
-        )
+    correlator = IncidentCorrelator()
+    incidents = correlator.correlate([a1, a2])
 
-
-# -----------------------------------------------------------------------------
-# 11. Disconnected Graph Components Tests
-# -----------------------------------------------------------------------------
-
-def test_disconnected_graph_components():
-    """Verify graph builder correctly identifies disconnected components and isolated subgraphs."""
-    # Cluster A on WS-01
-    a1 = make_alert("RULE-002", "WS-01", "alice", "a1")
-    a2 = make_alert("RULE-004", "WS-01", "alice", "a2")
-
-    # Cluster B on WS-02
-    b1 = make_alert("RULE-002", "WS-02", "bob", "b1")
-    b2 = make_alert("RULE-004", "WS-02", "bob", "b2")
-
-    # Isolated C on WS-03
-    c1 = make_alert("RULE-005", "WS-03", "charlie", "c1")
-
-    engine = CorrelationEngine(alerts=[a1, a2, b1, b2, c1])
-    results = engine.run()
-
-    graph_metrics = results["graph_metrics"]
-    # There must be multiple components
-    assert graph_metrics["total_connected_components"] >= 2
-    # c1 has no cross-rule or cross-alert partners on WS-03
-    components = results["graph"]["components"]
-    c1_comp = next((c for c in components if f"alert:c1" in c["node_ids"]), None)
-    assert c1_comp is not None
+    assert len(incidents) == 2
+    assert incidents[0].hosts != incidents[1].hosts
 
 
 # -----------------------------------------------------------------------------
-# 12. Duplicate Relationship Deduplication Tests
+# 4. Same IP in Unrelated Activity
 # -----------------------------------------------------------------------------
 
-def test_duplicate_relationship_prevention():
-    """Verify symmetric relationships (A, B) and (B, A) are canonicalized without duplicates."""
-    a1 = make_alert("RULE-002", "WS-01", "alice", "a1")
-    a2 = make_alert("RULE-004", "WS-01", "alice", "a2")
+def test_same_ip_in_unrelated_activity_not_falsely_merged():
+    """External attacker IP targeting DC is NOT falsely merged with a workstation making outbound traffic."""
+    # Failed brute force against DC from 198.51.100.23
+    a1 = make_alert(
+        rule_id="RULE-001",
+        host="SRV-DC-01",
+        username="asharma",
+        technique_id="T1110",
+        technique_name="Brute Force",
+        tactic="Credential Access",
+        kill_chain="Exploitation",
+        source_ip="198.51.100.23",
+        reasoning="Failed authentication; account compromise is NOT established.",
+    )
+    # Workstation compromise on WS-001
+    a2 = make_alert(
+        rule_id="RULE-002",
+        host="WS-001",
+        username="asharma",
+        technique_id="T1059.001",
+        technique_name="PowerShell",
+        tactic="Execution",
+        kill_chain="Exploitation",
+        destination_ip="198.51.100.23",
+    )
 
-    engine = CorrelationEngine(alerts=[a1, a2])
-    results = engine.run()
+    correlator = IncidentCorrelator()
+    incidents = correlator.correlate([a1, a2])
 
-    same_host_rels = [r for r in results["relationships"] if r["relationship_type"] == RelationshipType.SAME_HOST]
-    assert len(same_host_rels) == 1, "Exactly one SAME_HOST relationship should exist between a1 and a2"
-
-
-# -----------------------------------------------------------------------------
-# 13. Evidence Provenance Preservation Tests
-# -----------------------------------------------------------------------------
-
-def test_evidence_provenance_preservation():
-    """Verify all relationships retain complete provenance references with byte offsets."""
-    a1 = make_alert("RULE-002", "WS-01", "alice", "a1", evidence_references=[
-        {"event_id": "ev-1", "raw_file": "edr.json", "byte_offset": 500, "record_length": 120}
-    ])
-    a2 = make_alert("RULE-004", "WS-01", "alice", "a2", evidence_references=[
-        {"event_id": "ev-2", "raw_file": "edr.json", "byte_offset": 800, "record_length": 140}
-    ])
-
-    engine = CorrelationEngine(alerts=[a1, a2])
-    results = engine.run()
-
-    for rel in results["relationships"]:
-        assert len(rel["supporting_event_ids"]) > 0
-        assert len(rel["provenance_references"]) > 0
-        for ref in rel["provenance_references"]:
-            assert "byte_offset" in ref
-            assert ref["byte_offset"] >= 0
-            assert "raw_file" in ref
-            assert ref["record_length"] > 0
-
-
-# -----------------------------------------------------------------------------
-# 14. Critical Overlap Audit Test (RULE-002 & RULE-004 Campaign Guard)
-# -----------------------------------------------------------------------------
-
-def test_r2_r4_shared_hosts_not_classified_as_confirmed_campaign():
-    """
-    CRITICAL AUDIT INVARIANT:
-    The 22 hosts sharing RULE-002 and RULE-004 must NOT be classified as a confirmed campaign.
-    All behavioral sequence relationships must be INFERRED and LOW confidence.
-    """
-    alerts = []
-    for i in range(22):
-        hname = f"WS-TEST-{i:02d}"
-        alerts.append(make_alert("RULE-002", hname, f"user{i}", f"r2-{i}", kill_chain_stage="Execution"))
-        alerts.append(make_alert("RULE-004", hname, f"user{i}", f"r4-{i}", kill_chain_stage="Persistence"))
-
-    engine = CorrelationEngine(alerts=alerts)
-    results = engine.run()
-
-    for rel in results["relationships"]:
-        # Assert no relationship claims confirmed campaign or confirmed compromise
-        assert "confirmed campaign" not in rel["explanation"].lower()
-        assert "confirmed compromise" not in rel["explanation"].lower()
-
-        # If behavioral sequence, must be INFERRED and LOW
-        if rel["relationship_type"] == RelationshipType.POTENTIAL_BEHAVIORAL_SEQUENCE:
-            assert rel["observed_or_inferred"] == ObservationStatus.INFERRED
-            assert rel["confidence"] == ConfidenceLevel.LOW
+    # Must produce 2 separate incidents
+    assert len(incidents) == 2
+    dc_inc = next(inc for inc in incidents if "SRV-DC-01" in inc.hosts)
+    ws_inc = next(inc for inc in incidents if "WS-001" in inc.hosts)
+    assert dc_inc.incident_id != ws_inc.incident_id
+    assert "External Brute Force" in dc_inc.title
 
 
 # -----------------------------------------------------------------------------
-# 15. Cross-Source FortiGate Integration Tests
+# 5. Temporal Ordering of Timeline Events
 # -----------------------------------------------------------------------------
 
-def test_cross_source_fortigate_integration():
-    """Verify cross-source correlation matches EDR and FortiGate on IP, and reports limitation if missing."""
-    # Positive: Valid mock FortiGate log record matching EDR alert source IP
-    edr_alert = make_alert("RULE-001", "SRV-DC-01", "admin", "edr-1", source_ip="198.51.100.23")
-    mock_fg = [
+def test_temporal_ordering_in_timeline():
+    """Timeline events must be sorted strictly chronologically regardless of ingestion order."""
+    t3 = "2026-10-31T12:05:00Z"
+    t1 = "2026-10-31T12:00:00Z"
+    t2 = "2026-10-31T12:02:30Z"
+
+    a_late = make_alert("RULE-005", "WS-001", "alice", "T1486", "Impact", "Impact", "Actions on Objectives", first_seen=t3)
+    a_early = make_alert("RULE-002", "WS-001", "alice", "T1059.001", "PowerShell", "Execution", "Exploitation", first_seen=t1)
+    a_mid = make_alert("RULE-004", "WS-001", "alice", "T1547.001", "Run Keys", "Persistence", "Installation", first_seen=t2)
+
+    # Provide out of order: late, early, mid
+    timeline = build_incident_timeline([a_late, a_early, a_mid])
+    timestamps = [item.timestamp for item in timeline]
+
+    assert timestamps == [t1, t2, t3]
+
+
+# -----------------------------------------------------------------------------
+# 6. Successful vs Failed Authentication (Reach-Next)
+# -----------------------------------------------------------------------------
+
+def test_failed_authentication_produces_no_reach_next():
+    """Failed brute force authentication without successful login yields 0 reach-next assets."""
+    a_bf = make_alert(
+        rule_id="RULE-001",
+        host="SRV-DC-01",
+        username="admin",
+        technique_id="T1110",
+        technique_name="Brute Force",
+        tactic="Credential Access",
+        kill_chain="Exploitation",
+        source_ip="203.0.113.57",
+        reasoning="Repeated authentication failures; account compromise is NOT established.",
+    )
+    reach = evaluate_reach_next(["SRV-DC-01"], [a_bf])
+    assert len(reach) == 0
+
+
+# -----------------------------------------------------------------------------
+# 7. Missing and Sparse Identity Fields Resilience
+# -----------------------------------------------------------------------------
+
+def test_missing_identity_fields_resilience():
+    """Correlator handles alerts with None for host, username, or IP without raising exceptions."""
+    a_sparse = Alert(
+        rule_id="RULE-002",
+        title="Sparse Alert",
+        description="Testing missing fields",
+        severity="medium",
+        confidence="medium",
+        mitre_technique_id="T1059.001",
+        mitre_technique_name="PowerShell",
+        mitre_tactic="Execution",
+        kill_chain_stage="Exploitation",
+        first_seen="2026-10-31T12:00:00Z",
+        last_seen="2026-10-31T12:00:00Z",
+        host=None,
+        username=None,
+        supporting_event_ids=["evt-sparse"],
+        evidence_references=[
+            {"event_id": "evt-sparse", "raw_file": "test.json", "byte_offset": 0, "record_length": 10}
+        ],
+        reasoning="Sparse fields",
+    )
+
+    correlator = IncidentCorrelator()
+    incidents = correlator.correlate([a_sparse])
+    assert len(incidents) == 1
+    assert incidents[0].hosts == ["UNKNOWN_HOST"]
+
+
+# -----------------------------------------------------------------------------
+# 8. Unsupported Cross-Host Relationships Rejected
+# -----------------------------------------------------------------------------
+
+def test_unsupported_cross_host_relationships_rejected():
+    """Graph construction does NOT create edges between hosts without direct evidence."""
+    a1 = make_alert("RULE-002", "WS-001", "alice", "T1059.001", "PS", "Exec", "Exploitation")
+    a2 = make_alert("RULE-002", "WS-002", "bob", "T1059.001", "PS", "Exec", "Exploitation")
+
+    g1, _ = build_evidence_attack_graph([a1], ["WS-001"])
+    g2, _ = build_evidence_attack_graph([a2], ["WS-002"])
+
+    # Graphs are completely independent
+    assert "host:WS-002" not in g1.nodes
+    assert "host:WS-001" not in g2.nodes
+
+
+# -----------------------------------------------------------------------------
+# 9. Cycles and Duplicate Relationships Deduplication
+# -----------------------------------------------------------------------------
+
+def test_cycles_and_duplicate_relationships_deduplication():
+    """Multiple events referencing the same process and host do not create graph cycles or duplicate edges."""
+    a1 = make_alert("RULE-002", "WS-001", "alice", "T1059.001", "PS", "Exec", "Exploitation", process_name="powershell.exe", parent_process_name="winword.exe")
+    a2 = make_alert("RULE-002", "WS-001", "alice", "T1059.001", "PS", "Exec", "Exploitation", process_name="powershell.exe", parent_process_name="winword.exe")
+
+    g, serialized = build_evidence_attack_graph([a1, a2], ["WS-001"])
+
+    # NetworkX DiGraph should be a Directed Acyclic Graph (DAG)
+    import networkx as nx
+    assert nx.is_directed_acyclic_graph(g)
+
+
+# -----------------------------------------------------------------------------
+# 10. Incomplete Attack Paths Preserved Honestly
+# -----------------------------------------------------------------------------
+
+def test_incomplete_attack_paths_preserved_honestly():
+    """An incident missing initial access or missing impact is preserved honestly without fabricated stages."""
+    # Persistence followed by Ransomware (no initial Office execution observed)
+    a1 = make_alert("RULE-004", "WS-FIN-010", "user1", "T1547.001", "Run Keys", "Persistence", "Installation")
+    a2 = make_alert("RULE-005", "WS-FIN-010", "user1", "T1486", "Impact", "Impact", "Actions on Objectives", severity="critical")
+
+    correlator = IncidentCorrelator()
+    incidents = correlator.correlate([a1, a2])
+
+    assert len(incidents) == 1
+    inc = incidents[0]
+    alert_rules = [a["rule_id"] for a in inc.alerts]
+    assert "RULE-002" not in alert_rules
+    assert alert_rules == ["RULE-004", "RULE-005"]
+
+    # Graph contains no winword.exe node
+    node_labels = [n["label"] for n in inc.graph["nodes"]]
+    assert "winword.exe" not in node_labels
+
+
+# -----------------------------------------------------------------------------
+# 11. Observed Connectivity vs Confirmed Access (FR-6)
+# -----------------------------------------------------------------------------
+
+def test_observed_connectivity_vs_confirmed_access():
+    """Outbound connection is classified as 'unverified_connectivity'; username containing admin does NOT confer access."""
+    a_compromise = make_alert(
+        rule_id="RULE-002",
+        host="WS-001",
+        username="administrator",  # username contains admin
+        technique_id="T1059.001",
+        technique_name="PowerShell",
+        tactic="Execution",
+        kill_chain="Exploitation",
+        process_name="powershell.exe",
+    )
+    supp_net = [
         {
-            "event_id": "fg-traffic-101",
-            "source_ip": "198.51.100.23",
-            "destination_ip": "10.0.1.10",
-            "timestamp": "2026-10-31T12:39:55.000000+05:30",
-            "raw_file": "firex-10G.log",
-            "byte_offset": 4500,
-            "record_length": 180,
+            "event_id": "net-evt-1",
+            "host_name": "WS-001",
+            "process_name": "powershell.exe",
+            "destination_ip": "203.0.113.57",
+            "destination_domain": "c2-domain.test",
+            "raw_file": "net.json",
+            "byte_offset": 100,
+            "record_length": 50,
         }
     ]
 
-    engine = CorrelationEngine(alerts=[edr_alert], fortigate_records=mock_fg)
-    results = engine.run()
-
-    cross_rels = [r for r in results["relationships"] if r["relationship_type"] == RelationshipType.CROSS_SOURCE_NETWORK_MATCH]
-    assert len(cross_rels) == 1
-    rel = cross_rels[0]
-    assert rel["correlation_dimension"] == CorrelationDimension.CROSS_SOURCE
-    assert rel["evidence"]["matched_ip"] == "198.51.100.23"
-    assert "fg-traffic-101" in rel["supporting_event_ids"]
-
-    # Negative: Without FortiGate records, cleanly reports limitation without crashing
-    engine_empty = CorrelationEngine(alerts=[edr_alert])
-    results_empty = engine_empty.run()
-    cross_empty = [r for r in results_empty["relationships"] if r["relationship_type"] == RelationshipType.CROSS_SOURCE_NETWORK_MATCH]
-    assert len(cross_empty) == 0
+    reach = evaluate_reach_next(["WS-001"], [a_compromise], supp_net)
+    assert len(reach) == 1
+    r = reach[0]
+    assert r.target == "203.0.113.57"
+    assert r.verification_status == "unverified_connectivity"
+    assert "access rights, authentication, and administrative privileges are unverified" in r.reasoning
 
 
 # -----------------------------------------------------------------------------
-# 16. End-to-End Integration Test against Real Phase 2 Alerts
+# 12. End-to-End Correlation on Real Normalized EDR Parquet
 # -----------------------------------------------------------------------------
 
-def test_full_phase3_pipeline_on_real_alerts():
-    """Run full correlation engine against the actual reports/phase2_alerts.json export."""
-    alerts_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports", "phase2_alerts.json")
-    if not os.path.isfile(alerts_file):
-        pytest.skip("reports/phase2_alerts.json not found")
-
-    engine = CorrelationEngine(alerts_file=alerts_file)
-    results = engine.run()
-
-    assert results["metadata"]["total_alerts_evaluated"] == 90
-    assert results["entity_summary"]["unique_hosts"] == 28
-    assert results["entity_summary"]["unique_users"] == 12
-
-    # Check dimension presence
-    by_dim = results["relationship_metrics"]["by_dimension"]
-    assert "host" in by_dim
-    assert "user" in by_dim
-    assert "network" in by_dim
-    assert "process" in by_dim
-    assert "temporal" in by_dim
-    assert "behavioral" in by_dim
-
-    # Check confidence breakdown
-    by_conf = results["relationship_metrics"]["by_confidence"]
-    assert "LOW" in by_conf
-    assert "MEDIUM" in by_conf
-
-    # Check that NO relationship overclaims confirmed compromise
-    for rel in results["relationships"]:
-        assert "confirmed compromise" not in rel["explanation"].lower()
-        assert "confirmed campaign" not in rel["explanation"].lower()
-
-
-# -----------------------------------------------------------------------------
-# 17. Phase 3.1 Audit Negative Tests & Integrity Invariants
-# -----------------------------------------------------------------------------
-
-def test_cross_host_same_user_does_not_merge_investigation_clusters():
+def test_e2e_correlation_on_real_dataset():
     """
-    NEGATIVE TEST: Prove randomly shared usernames do not merge unrelated investigation clusters.
-    Two alerts on different hosts sharing a username must be marked ineligible for investigation clustering.
+    End-to-end correlation test against edr_events.parquet.
+    Verifies alert clustering, incident count (29), NetworkX graph validity, and reach-next reasoning.
     """
-    a1 = make_alert("RULE-002", "WS-HR-01", "common_user", "a1")
-    a2 = make_alert("RULE-004", "WS-FIN-02", "common_user", "a2")
+    parquet_path = "data/processed/edr_events.parquet"
+    if not os.path.exists(parquet_path):
+        pytest.skip("data/processed/edr_events.parquet does not exist")
 
-    engine = CorrelationEngine(alerts=[a1, a2])
-    results = engine.run()
+    from backend.detection.engine import DetectionEngine
 
-    user_rels = [r for r in results["relationships"] if r["relationship_type"] == RelationshipType.SAME_USER]
-    assert len(user_rels) == 1
-    rel = user_rels[0]
-    assert rel["is_investigation_eligible"] is False
-    assert rel["evidence"]["same_host"] is False
+    with DuckDBEngine() as db:
+        with DetectionEngine(engine=db) as det:
+            alerts = det.run_all(parquet_path)
+            assert len(alerts) == 90
 
-    # In raw components, they are connected via user
-    raw_comps = [c for c in results["graph"]["components"] if c["has_alerts"]]
-    assert len(raw_comps) == 1
+            correlator = IncidentCorrelator(engine=db, parquet_path=parquet_path)
+            incidents = correlator.correlate(alerts)
 
-    # In investigation components, they MUST remain strictly disconnected
-    inv_comps = [c for c in results["graph"]["investigation_components"] if c["has_alerts"]]
-    assert len(inv_comps) == 2, "Cross-host username match must NOT merge distinct host investigation clusters"
+            # 29 discrete, evidence-backed security incidents
+            assert len(incidents) == 29
 
+            # Check that every incident has a valid graph, timeline, and valid reach-next status
+            for inc in incidents:
+                assert inc.incident_id.startswith("INC-")
+                assert inc.title
+                assert inc.severity in {"critical", "high", "medium", "low"}
+                assert inc.confidence in {"high", "medium", "low"}
+                assert len(inc.hosts) > 0
+                assert len(inc.timeline) > 0
+                assert len(inc.graph["nodes"]) > 0
 
-def test_same_process_image_with_different_pids_is_not_same_process():
-    """
-    NEGATIVE TEST: Prove same process image with different PIDs is NOT classified as SAME_PROCESS.
-    Only matching PIDs may be classified as SAME_PROCESS.
-    """
-    # a1 and a2 have same image, different PIDs
-    a1 = make_alert("RULE-002", "WS-01", "alice", "a1", process_name="powershell.exe", process_id=1001)
-    a2 = make_alert("RULE-004", "WS-01", "alice", "a2", process_name="powershell.exe", process_id=2002)
-    # a3 has same image AND same PID as a1
-    a3 = make_alert("RULE-004", "WS-01", "alice", "a3", process_name="powershell.exe", process_id=1001)
+                for r in inc.reach_next:
+                    assert r.verification_status in {"unverified_connectivity", "authenticated_only", "confirmed_access"}
+                    assert r.confidence in {"high", "medium", "low"}
 
-    extractor = EntityExtractor([a1, a2, a3])
-    correlator = ProcessCorrelator()
-    rels = correlator.correlate(extractor)
-
-    # Check pair (a1, a2)
-    a1_a2 = [r for r in rels if {r.source_observation_id, r.target_observation_id} == {"a1", "a2"}]
-    assert len(a1_a2) == 1
-    assert a1_a2[0].relationship_type == RelationshipType.SAME_PROCESS_IMAGE
-    assert a1_a2[0].confidence == ConfidenceLevel.MEDIUM
-    assert a1_a2[0].evidence["same_pid"] is False
-
-    # Check pair (a1, a3)
-    a1_a3 = [r for r in rels if {r.source_observation_id, r.target_observation_id} == {"a1", "a3"}]
-    assert len(a1_a3) == 1
-    assert a1_a3[0].relationship_type == RelationshipType.SAME_PROCESS
-    assert a1_a3[0].confidence == ConfidenceLevel.HIGH
-    assert a1_a3[0].evidence["same_pid"] is True
-
-
-def test_same_host_temporal_proximity_does_not_establish_attack_sequence():
-    """
-    NEGATIVE TEST: Prove same-host temporal proximity alone does NOT establish a behavioral attack sequence.
-    RULE-001 (failed logon) and RULE-005 (ransomware file rename) on SRV-DC-01 5ms apart without process
-    or credential link must produce 0 behavioral sequences.
-    """
-    t1 = "2026-10-31T12:39:55.000000+05:30"
-    t2 = "2026-10-31T12:39:55.005000+05:30"
-    a1 = make_alert("RULE-001", "SRV-DC-01", "johndoe", "a1", first_seen=t1, process_name="lsass.exe", process_id=500, kill_chain_stage="Credential Access")
-    a2 = make_alert("RULE-005", "SRV-DC-01", "administrator", "a2", first_seen=t2, process_name="unknown.exe", process_id=900, kill_chain_stage="Actions on Objectives")
-
-    engine = CorrelationEngine(alerts=[a1, a2])
-    results = engine.run()
-
-    # Behavioral sequence must be rejected
-    seq_rels = [r for r in results["relationships"] if r["relationship_type"] == RelationshipType.POTENTIAL_BEHAVIORAL_SEQUENCE]
-    assert len(seq_rels) == 0, "Unevidenced failed logon to file rename must NOT be synthesized into an attack sequence"
-
-    # Temporal co-occurrence is recorded but marked ineligible for investigation clustering
-    temp_rels = [r for r in results["relationships"] if r["relationship_type"] == RelationshipType.TEMPORALLY_NEAR]
-    assert len(temp_rels) == 1
-    assert temp_rels[0]["confidence"] == ConfidenceLevel.LOW
-    assert temp_rels[0]["is_investigation_eligible"] is False
-
-
-def test_test_net_addresses_are_not_real_attacker_infrastructure():
-    """
-    NEGATIVE TEST: Prove TEST-NET documentation addresses are NOT classified as real attacker infrastructure.
-    Multiple hosts targeting a TEST-NET IP must receive LOW confidence and be ineligible for investigation clustering.
-    """
-    a1 = make_alert("RULE-001", "SRV-01", "u1", "a1", source_ip="198.51.100.23")
-    a2 = make_alert("RULE-001", "SRV-02", "u2", "a2", source_ip="198.51.100.23")
-    a3 = make_alert("RULE-001", "SRV-03", "u3", "a3", source_ip="198.51.100.23")
-
-    engine = CorrelationEngine(alerts=[a1, a2, a3])
-    results = engine.run()
-
-    ip_rels = [r for r in results["relationships"] if r["relationship_type"] == RelationshipType.SAME_SOURCE_IP]
-    assert len(ip_rels) == 3
-    for r in ip_rels:
-        assert r["confidence"] == ConfidenceLevel.LOW
-        assert r["is_investigation_eligible"] is False
-        assert "TEST-NET" in r["explanation"]
-
-    # In investigation components, the 3 servers must NOT be merged
-    inv_comps = [c for c in results["graph"]["investigation_components"] if c["has_alerts"]]
-    assert len(inv_comps) == 3
-
-
-def test_missing_pid_ppid_linkage_does_not_produce_process_ancestry():
-    """
-    NEGATIVE TEST: Prove missing or mismatched PID-to-PPID linkage does NOT produce process ancestry.
-    """
-    p1 = make_alert("RULE-002", "WS-01", "user", "p1", process_name="winword.exe", process_id=1234)
-    c1 = make_alert("RULE-002", "WS-01", "user", "c1", process_name="cmd.exe", process_id=5678, parent_process_id=9999)
-
-    extractor = EntityExtractor([p1, c1])
-    correlator = ProcessCorrelator()
-    rels = correlator.correlate(extractor)
-
-    pc_rels = [r for r in rels if r.relationship_type == RelationshipType.PARENT_CHILD_PROCESS]
-    assert len(pc_rels) == 0, "Mismatched PPID must not produce PARENT_CHILD_PROCESS"
-
-
-def test_public_ip_multi_target_does_not_receive_high_confidence():
-    """
-    NEGATIVE TEST: A public IP targeting >= 3 hosts must NOT receive HIGH confidence solely due to target count.
-    Shared IP alone without authenticated C2 telemetry remains at most MEDIUM confidence.
-    """
-    conf, exp = evaluate_confidence(
-        rel_type=RelationshipType.SAME_SOURCE_IP,
-        dimension=CorrelationDimension.NETWORK,
-        evidence={"ip": "8.8.8.8", "is_test_net": False, "is_public": True, "target_count": 5},
-    )
-    assert conf == ConfidenceLevel.MEDIUM, f"Expected MEDIUM, got {conf}"
-    assert "do not independently establish malicious intent" in exp
-
-
-def test_provenance_verification_detects_corrupted_offsets_and_records(tmp_path):
-    """
-    NEGATIVE TEST: Prove provenance verification actively detects corrupted offsets, truncated lengths,
-    and mismatched event IDs rather than silently succeeding.
-    """
-    raw_content = b'{"event_id": "test-uuid-001", "event_type": "process_creation"}\n'
-    test_file = tmp_path / "test_events.json"
-    test_file.write_bytes(raw_content)
-
-    # 1. Valid reference should pass
-    valid_alert = make_alert("RULE-002", "WS-01", "user", "a1", evidence_references=[
-        {"event_id": "test-uuid-001", "raw_file": str(test_file), "byte_offset": 0, "record_length": len(raw_content)}
-    ])
-    engine_valid = CorrelationEngine(alerts=[valid_alert])
-    engine_valid.run()
-    res_valid = engine_valid.verify_all_provenance(str(test_file))
-    assert res_valid["verified"] == 1
-    assert res_valid["failed"] == 0
-
-    # 2. Corrupted byte offset should fail
-    corrupt_offset_alert = make_alert("RULE-002", "WS-01", "user", "a2", evidence_references=[
-        {"event_id": "test-uuid-001", "raw_file": str(test_file), "byte_offset": 99999, "record_length": len(raw_content)}
-    ])
-    engine_bad_offset = CorrelationEngine(alerts=[corrupt_offset_alert])
-    engine_bad_offset.run()
-    res_bad_offset = engine_bad_offset.verify_all_provenance(str(test_file))
-    assert res_bad_offset["failed"] == 1
-    assert "seek error" in res_bad_offset["failure_details"][0]["reason"]
-
-    # 3. Mismatched event ID should fail
-    mismatched_id_alert = make_alert("RULE-002", "WS-01", "user", "a3", evidence_references=[
-        {"event_id": "different-uuid-999", "raw_file": str(test_file), "byte_offset": 0, "record_length": len(raw_content)}
-    ])
-    engine_bad_id = CorrelationEngine(alerts=[mismatched_id_alert])
-    engine_bad_id.run()
-    res_bad_id = engine_bad_id.verify_all_provenance(str(test_file))
-    assert res_bad_id["failed"] == 1
-    assert "event_id mismatch" in res_bad_id["failure_details"][0]["reason"]
-
-
-def test_exhaustive_provenance_verification_on_actual_dataset():
-    """
-    EXHAUSTIVE PROVENANCE TEST: Verify all 364 underlying evidence references against edr_events.json.
-    Must achieve 100% resolution with 0 failures and 0 duplicates.
-    """
-    alerts_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports", "phase2_alerts.json")
-    raw_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "edr_events.json")
-
-    if not os.path.isfile(alerts_file) or not os.path.isfile(raw_file):
-        pytest.skip("Dataset files not found")
-
-    engine = CorrelationEngine(alerts_file=alerts_file)
-    engine.run()
-    prov_result = engine.verify_all_provenance(raw_file)
-
-    assert prov_result["total_unique_references"] == 364
-    assert prov_result["verified"] == 364
-    assert prov_result["failed"] == 0
-    assert prov_result["unresolvable"] == 0
-    assert prov_result["success_rate_pct"] == 100.0
-
+            # Verify DC brute-force campaign is properly separated from workstation compromises
+            dc_inc = next(inc for inc in incidents if inc.title.startswith("External Brute Force"))
+            assert "SRV-DC-01" in dc_inc.hosts
+            assert len(dc_inc.reach_next) == 0  # 0 access obtained
