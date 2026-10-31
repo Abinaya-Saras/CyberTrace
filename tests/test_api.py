@@ -224,3 +224,83 @@ class TestAPIEndpoints:
         assert data["ingestion"]["parsed_ok"] == 10000
         assert data["incidents_count"] >= 29
 
+    def test_chunked_upload_lifecycle_and_checksum_match(self, client):
+        """Test complete chunked upload protocol: init -> chunk -> status -> finalize -> checksum."""
+        import hashlib
+
+        with open("edr_events.json", "rb") as f:
+            original_data = f.read(50000)  # 50KB test payload
+        original_hash = hashlib.sha256(original_data).hexdigest()
+        chunk_size = 15000
+        total_size = len(original_data)
+        total_chunks = (total_size + chunk_size - 1) // chunk_size
+
+        # 1. Init
+        init_resp = client.post("/api/upload/init", json={
+            "filename": "chunked_test.json",
+            "total_size": total_size,
+            "chunk_size": chunk_size
+        })
+        assert init_resp.status_code == 200
+        upload_id = init_resp.json()["upload_id"]
+        assert init_resp.json()["total_chunks"] == total_chunks
+
+        # 2. Upload chunks in non-sequential order to verify seek-based placement
+        chunk_indices = list(range(total_chunks))
+        chunk_indices.reverse()  # upload reverse order: 3, 2, 1, 0
+
+        for idx in chunk_indices:
+            start = idx * chunk_size
+            end = min(start + chunk_size, total_size)
+            chunk_slice = original_data[start:end]
+
+            c_resp = client.post(
+                "/api/upload/chunk",
+                data={"upload_id": upload_id, "chunk_index": idx},
+                files={"file": ("blob", chunk_slice, "application/octet-stream")}
+            )
+            assert c_resp.status_code == 200
+            assert c_resp.json()["status"] == "chunk_received"
+
+        # 3. Check status
+        st_resp = client.get(f"/api/upload/status/{upload_id}")
+        assert st_resp.status_code == 200
+        assert st_resp.json()["is_complete"] is True
+        assert st_resp.json()["received_count"] == total_chunks
+
+        # 4. Finalize
+        fin_resp = client.post("/api/upload/finalize", json={
+            "upload_id": upload_id,
+            "trigger_pipeline": False
+        })
+        assert fin_resp.status_code == 200
+        file_path = fin_resp.json()["file_path"]
+        assert os.path.isfile(file_path)
+
+        # 5. Verify Checksum
+        with open(file_path, "rb") as f:
+            uploaded_hash = hashlib.sha256(f.read()).hexdigest()
+        assert uploaded_hash == original_hash, "Uploaded file checksum does not match original!"
+
+        # Cleanup test file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    def test_chunked_upload_abort(self, client):
+        """Test aborting an in-progress chunked upload session and cleaning up temporary files."""
+        init_resp = client.post("/api/upload/init", json={
+            "filename": "aborted_test.log",
+            "total_size": 100000,
+            "chunk_size": 20000
+        })
+        upload_id = init_resp.json()["upload_id"]
+
+        del_resp = client.delete(f"/api/upload/{upload_id}")
+        assert del_resp.status_code == 200
+        assert del_resp.json()["status"] == "aborted"
+
+        # Verify status now returns 404
+        st_resp = client.get(f"/api/upload/status/{upload_id}")
+        assert st_resp.status_code == 404
+
+

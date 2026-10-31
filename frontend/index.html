@@ -92,7 +92,7 @@
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 15px;
+      font-size: 14px;
       letter-spacing: -0.5px;
     }
 
@@ -156,6 +156,8 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex: 1;
+      min-width: 320px;
     }
 
     .file-select-label {
@@ -171,6 +173,7 @@
       font-weight: 500;
       cursor: pointer;
       transition: background 0.15s;
+      white-space: nowrap;
     }
 
     .file-select-label:hover {
@@ -184,7 +187,7 @@
     .selected-filename {
       font-size: 12px;
       color: var(--text-muted);
-      max-width: 200px;
+      max-width: 220px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -202,6 +205,7 @@
       border: 1px solid transparent;
       cursor: pointer;
       transition: all 0.15s;
+      white-space: nowrap;
     }
 
     .btn-primary {
@@ -228,6 +232,38 @@
       background: var(--bg-subtle);
     }
 
+    /* Upload Progress Box */
+    .upload-progress-container {
+      display: none;
+      flex: 1;
+      max-width: 380px;
+      margin: 0 10px;
+    }
+
+    .upload-progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+
+    .upload-progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: var(--bg-subtle);
+      border-radius: 3px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .upload-progress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.15s ease;
+    }
+
     .metrics-group {
       display: flex;
       align-items: center;
@@ -250,10 +286,11 @@
 
     .metric-badge {
       display: inline-block;
-      padding: 1px 7px;
+      padding: 2px 8px;
       border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
+      white-space: nowrap;
     }
 
     .badge-critical { background: var(--crit-bg); color: var(--crit-text); border: 1px solid var(--crit-border); }
@@ -272,7 +309,7 @@
 
     /* Left Sidebar: Incident List */
     .sidebar {
-      width: 340px;
+      width: 320px;
       background: var(--bg-surface);
       border-right: 1px solid var(--border-color);
       display: flex;
@@ -322,7 +359,7 @@
     .incident-list {
       flex: 1;
       overflow-y: auto;
-      padding: 6px 0;
+      padding: 4px 0;
     }
 
     .incident-item {
@@ -346,7 +383,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
 
     .item-id {
@@ -359,12 +396,11 @@
       font-size: 12px;
       color: var(--text-main);
       font-weight: 500;
-      margin-bottom: 6px;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+      margin-bottom: 5px;
+      white-space: nowrap;
       overflow: hidden;
-      line-height: 1.4;
+      text-overflow: ellipsis;
+      line-height: 1.3;
     }
 
     .item-meta {
@@ -387,7 +423,7 @@
     .incident-header {
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border-color);
-      padding: 14px 20px;
+      padding: 12px 20px;
       flex-shrink: 0;
     }
 
@@ -400,7 +436,7 @@
     }
 
     .inc-title {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       color: var(--text-main);
       letter-spacing: -0.2px;
@@ -409,10 +445,10 @@
     .inc-summary {
       font-size: 12px;
       color: var(--text-muted);
-      margin-bottom: 10px;
-      line-height: 1.5;
+      margin-bottom: 8px;
+      line-height: 1.45;
       background: var(--bg-subtle);
-      padding: 8px 12px;
+      padding: 6px 12px;
       border-radius: 5px;
       border: 1px solid var(--border-color);
     }
@@ -451,7 +487,7 @@
     }
 
     .tab-item {
-      padding: 10px 16px;
+      padding: 9px 16px;
       font-size: 13px;
       font-weight: 500;
       color: var(--text-muted);
@@ -491,7 +527,7 @@
        ------------------------------------------------------------------------- */
     #graphTab {
       flex-direction: row;
-      background: #fafafa;
+      background: #fafbfc;
     }
 
     .graph-stage {
@@ -547,12 +583,12 @@
 
     .graph-legend {
       position: absolute;
-      bottom: 14px;
+      bottom: 12px;
       left: 14px;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.96);
       border: 1px solid var(--border-color);
       border-radius: 6px;
-      padding: 8px 12px;
+      padding: 6px 12px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
       font-size: 11px;
       display: flex;
@@ -581,7 +617,7 @@
 
     /* Right Inspector Side-Drawer */
     .inspector-panel {
-      width: 300px;
+      width: 310px;
       background: var(--bg-surface);
       border-left: 1px solid var(--border-color);
       display: flex;
@@ -611,7 +647,7 @@
     }
 
     .prop-key {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-subtle);
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -707,19 +743,40 @@
     }
 
     /* -------------------------------------------------------------------------
-       6. Reach-Next Intelligence Viewport
+       6. Potential Next Access Viewport (Rewritten Reach-Next)
        ------------------------------------------------------------------------- */
     #reachTab {
       padding: 16px 20px;
       overflow-y: auto;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
+    }
+
+    .reach-explainer-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-left: 3px solid var(--primary);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 12px;
+    }
+
+    .reach-explainer-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .reach-explainer-desc {
+      color: var(--text-muted);
+      line-height: 1.5;
     }
 
     .reach-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-      gap: 12px;
+      gap: 14px;
     }
 
     .reach-card {
@@ -729,14 +786,15 @@
       padding: 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.02);
     }
 
     .reach-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
+      gap: 8px;
     }
 
     .reach-target-title {
@@ -752,6 +810,7 @@
       border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
+      white-space: nowrap;
     }
 
     .pill-outbound {
@@ -764,6 +823,37 @@
       background: #fefce8;
       border: 1px solid #fef08a;
       color: #854d0e;
+    }
+
+    .pill-auth {
+      background: #faf5ff;
+      border: 1px solid #e9d5ff;
+      color: #7e22ce;
+    }
+
+    .pill-confirmed {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+
+    .reach-field-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .reach-field-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .reach-field-val {
+      font-size: 12px;
+      color: var(--text-main);
     }
 
     .reach-reasoning {
@@ -889,6 +979,18 @@
       </label>
       <input type="file" id="logFileInput" accept=".json,.ndjson,.log">
       <span class="selected-filename" id="selectedFileName">Default: edr_events.json</span>
+      
+      <!-- Chunked Upload Real-Time Progress -->
+      <div class="upload-progress-container" id="uploadProgressBox">
+        <div class="upload-progress-header">
+          <span id="uploadStatusLabel">Uploading...</span>
+          <span id="uploadPercentLabel" style="font-weight:600; color:var(--primary);">0%</span>
+        </div>
+        <div class="upload-progress-bar-bg">
+          <div class="upload-progress-bar-fill" id="uploadProgressBar"></div>
+        </div>
+      </div>
+
       <button class="btn btn-primary" id="btnUpload" onclick="handleFileUpload()">
         Upload & Analyse
       </button>
@@ -951,24 +1053,24 @@
       <nav class="tab-strip">
         <button class="tab-item active" data-tab="graphTab" onclick="switchTab('graphTab')">Attack Graph</button>
         <button class="tab-item" data-tab="timelineTab" onclick="switchTab('timelineTab')">Chronological Timeline</button>
-        <button class="tab-item" data-tab="reachTab" onclick="switchTab('reachTab')">Reach-Next Intelligence</button>
+        <button class="tab-item" data-tab="reachTab" onclick="switchTab('reachTab')">Potential Next Access</button>
       </nav>
 
-      <!-- Tab 1: Structured Hierarchical Attack Graph -->
+      <!-- Tab 1: Structured Layered Attack Graph -->
       <div class="viewport active" id="graphTab">
         <div class="graph-stage">
           <div class="graph-controls">
             <button class="ctrl-btn" onclick="zoomGraph(1.15)" title="Zoom In">+</button>
             <button class="ctrl-btn" onclick="zoomGraph(0.85)" title="Zoom Out">−</button>
-            <button class="ctrl-btn" onclick="resetGraphView()" title="Fit to View">⛶</button>
+            <button class="ctrl-btn" onclick="fitGraphView()" title="Fit to View">⛶</button>
           </div>
 
           <div class="graph-legend">
             <div class="legend-item"><span class="legend-dot" style="background:#0d9488;"></span> Host</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#4f46e5;"></span> User</div>
             <div class="legend-item"><span class="legend-dot" style="background:#7c3aed;"></span> Process</div>
             <div class="legend-item"><span class="legend-dot" style="background:#d97706;"></span> Registry</div>
             <div class="legend-item"><span class="legend-dot" style="background:#e11d48;"></span> File</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#2563eb;"></span> Network (Outbound)</div>
             <div class="legend-item"><span class="legend-dot" style="background:#dc2626;"></span> Alert</div>
             <div class="legend-item"><span class="legend-line" style="background:#2563eb;"></span> Observed</div>
             <div class="legend-item"><span class="legend-line" style="border-top:2px dashed #94a3b8;"></span> Inferred</div>
@@ -1012,10 +1114,17 @@
         </div>
       </div>
 
-      <!-- Tab 3: Reach-Next Intelligence Cards -->
+      <!-- Tab 3: Potential Next Access Viewport -->
       <div class="viewport" id="reachTab">
+        <div class="reach-explainer-card">
+          <div class="reach-explainer-title">Potential Next Access Analysis</div>
+          <div class="reach-explainer-desc">
+            Answers: <em>"What other systems could the attacker access next, based on the available evidence?"</em>
+            Observed network connections or authentication attempts do not confirm successful remote access. Downstream access is confirmed only when telemetry supports actual execution or compromise on the target system.
+          </div>
+        </div>
         <div class="reach-grid" id="reachGrid">
-          <div class="empty-state">No reach-next targets recorded.</div>
+          <div class="empty-state">No reach targets recorded.</div>
         </div>
       </div>
 
@@ -1054,11 +1163,19 @@
     let nodeLayout = {};
     let edgeLayout = [];
     let transform = { x: 0, y: 0, scale: 1 };
-    let isDragging = false;
-    let dragStart = { x: 0, y: 0 };
+    
+    // Canvas Interaction State
+    let isPanning = false;
+    let panStart = { x: 0, y: 0 };
+    let draggedNode = null;
+    let nodeDragOffset = { x: 0, y: 0 };
+    let dragDistance = 0;
     let hoveredNode = null;
     let selectedNode = null;
     let selectedEdge = null;
+
+    // Grouping of repeated process instances
+    let expandedProcessGroups = new Set();
 
     const canvas = document.getElementById("graphCanvas");
     const ctx = canvas.getContext("2d");
@@ -1067,18 +1184,38 @@
     window.addEventListener("DOMContentLoaded", () => {
       setupCanvas();
       setupFileInput();
-      fetchIncidents();
+      fetchIncidents().then(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const incParam = urlParams.get("inc");
+        if (incParam) {
+          selectIncident(incParam);
+        }
+        const expandParam = urlParams.get("expand");
+        if (expandParam) {
+          toggleProcessGroup(expandParam);
+        }
+        if (window.location.hash) {
+          const tabId = window.location.hash.substring(1);
+          if (document.getElementById(tabId)) {
+            switchTab(tabId);
+          }
+        }
+        const evidParam = urlParams.get("evidence");
+        if (evidParam) {
+          setTimeout(() => openEvidenceModal(evidParam), 150);
+        }
+      });
     });
 
     // -------------------------------------------------------------------------
-    // File Selection & Multipart Upload
+    // Large File Chunked Upload & Pipeline Trigger
     // -------------------------------------------------------------------------
     function setupFileInput() {
       const input = document.getElementById("logFileInput");
       input.addEventListener("change", () => {
         if (input.files && input.files.length > 0) {
           const file = input.files[0];
-          const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+          const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
           document.getElementById("selectedFileName").textContent = `${file.name} (${sizeMb} MB)`;
         }
       });
@@ -1088,9 +1225,13 @@
       const input = document.getElementById("logFileInput");
       const btn = document.getElementById("btnUpload");
       const statusText = document.getElementById("systemStatusText");
+      const progressBox = document.getElementById("uploadProgressBox");
+      const progressBar = document.getElementById("uploadProgressBar");
+      const statusLabel = document.getElementById("uploadStatusLabel");
+      const percentLabel = document.getElementById("uploadPercentLabel");
 
       if (!input.files || input.files.length === 0) {
-        // Trigger server ingestion of default file if no local file selected
+        // Trigger server ingestion of default dataset if no local file selected
         try {
           btn.disabled = true;
           statusText.textContent = "Processing Default Dataset...";
@@ -1113,39 +1254,132 @@
         return;
       }
 
-      // Real Multipart File Upload
+      // Robust Chunked Upload (32 MB chunks direct to disk seek offset)
       const file = input.files[0];
-      const formData = new FormData();
-      formData.append("file", file);
+      const CHUNK_SIZE = 32 * 1024 * 1024; // 32 MB
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+      const totalSizeMb = (file.size / (1024 * 1024)).toFixed(1);
 
       btn.disabled = true;
-      statusText.textContent = `Uploading ${file.name}...`;
+      progressBox.style.display = "block";
+      statusText.textContent = "Uploading Log Telemetry...";
+
+      let uploadId = null;
 
       try {
-        const res = await fetch("/api/upload", {
+        // 1. Initialize upload session
+        const initRes = await fetch("/api/upload/init", {
           method: "POST",
-          body: formData
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            total_size: file.size,
+            chunk_size: CHUNK_SIZE
+          })
         });
 
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.detail || `Upload failed with status ${res.status}`);
+        if (!initRes.ok) {
+          const errData = await initRes.json();
+          throw new Error(errData.detail || "Failed to initialize upload session");
         }
 
-        const data = await res.json();
+        const initData = await initRes.json();
+        uploadId = initData.upload_id;
+
+        // 2. Sequential chunk upload with retry
+        for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+          const start = chunkIdx * CHUNK_SIZE;
+          const end = Math.min(file.size, start + CHUNK_SIZE);
+          const chunkBlob = file.slice(start, end);
+
+          let chunkSuccess = false;
+          let lastErr = null;
+
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              const formData = new FormData();
+              formData.append("upload_id", uploadId);
+              formData.append("chunk_index", chunkIdx);
+              formData.append("file", chunkBlob, `${file.name}.part${chunkIdx}`);
+
+              const chunkRes = await fetch("/api/upload/chunk", {
+                method: "POST",
+                body: formData
+              });
+
+              if (!chunkRes.ok) {
+                const chunkErr = await chunkRes.json();
+                throw new Error(chunkErr.detail || `Chunk ${chunkIdx} failed HTTP ${chunkRes.status}`);
+              }
+
+              chunkSuccess = true;
+              break;
+            } catch (err) {
+              lastErr = err;
+              if (attempt < 3) {
+                statusLabel.textContent = `Retrying chunk ${chunkIdx + 1}/${totalChunks}...`;
+                await new Promise(r => setTimeout(r, 800));
+              }
+            }
+          }
+
+          if (!chunkSuccess) {
+            throw new Error(`Upload failed at chunk ${chunkIdx + 1}/${totalChunks}: ${lastErr?.message}`);
+          }
+
+          // Update Progress Bar
+          const transferredBytes = Math.min(file.size, (chunkIdx + 1) * CHUNK_SIZE);
+          const transferredMb = (transferredBytes / (1024 * 1024)).toFixed(1);
+          const pct = Math.round((transferredBytes / file.size) * 100);
+
+          progressBar.style.width = `${pct}%`;
+          percentLabel.textContent = `${pct}%`;
+          statusLabel.textContent = `Chunk ${chunkIdx + 1}/${totalChunks} (${transferredMb} / ${totalSizeMb} MB)`;
+        }
+
+        // 3. Finalize upload & start pipeline
+        statusLabel.textContent = "Finalizing & Analysing...";
+        statusText.textContent = "Analysing Uploaded Dataset...";
+
+        const finalRes = await fetch("/api/upload/finalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            upload_id: uploadId,
+            trigger_pipeline: true
+          })
+        });
+
+        if (!finalRes.ok) {
+          const finalErr = await finalRes.json();
+          throw new Error(finalErr.detail || "Finalization failed");
+        }
+
+        const data = await finalRes.json();
         statusText.textContent = "Pipeline Online";
-        alert(`Upload & Analysis Complete!\n\nFile: ${data.filename}\nFormat: ${data.format}\nParsed: ${data.ingestion.parsed_ok.toLocaleString()} records\nIncidents Correlated: ${data.incidents_count}`);
+        progressBox.style.display = "none";
+        progressBar.style.width = "0%";
+
+        const throughput = data.pipeline ? Math.round(data.pipeline.throughput_records_per_sec).toLocaleString() : "N/A";
+        const parsed = data.pipeline ? data.pipeline.parsed_ok.toLocaleString() : "N/A";
+
+        alert(`Upload & Analysis Complete!\n\nFile: ${data.filename} (${(data.file_size / (1024 * 1024)).toFixed(1)} MB)\nFormat: ${data.format}\nParsed Records: ${parsed}\nThroughput: ${throughput} rec/sec\nIncidents Correlated: ${data.incidents_count}`);
         await fetchIncidents();
       } catch (err) {
         statusText.textContent = "Upload Failed";
-        alert(`Error: ${err.message}`);
+        alert(`Upload Error: ${err.message}`);
+        // Clean up temporary files on server
+        if (uploadId) {
+          fetch(`/api/upload/${uploadId}`, { method: "DELETE" }).catch(() => {});
+        }
       } finally {
         btn.disabled = false;
+        progressBox.style.display = "none";
       }
     }
 
     // -------------------------------------------------------------------------
-    // Incident Data Loading & Metrics
+    // Incident Catalog & Metrics Strip
     // -------------------------------------------------------------------------
     async function fetchIncidents() {
       try {
@@ -1156,7 +1390,7 @@
         renderIncidentList(incidents);
 
         if (incidents.length > 0) {
-          selectIncident(incidents[0].incident_id);
+          await selectIncident(incidents[0].incident_id);
         }
       } catch (err) {
         console.error("Failed to load incidents:", err);
@@ -1191,13 +1425,18 @@
         const activeClass = inc.incident_id === activeIncidentId ? "active" : "";
         const sevClass = `badge-${(inc.severity || 'low').toLowerCase()}`;
         const host = (inc.hosts && inc.hosts.length > 0) ? inc.hosts[0] : "Unknown Host";
+        
+        // Clean short incident title
+        let shortTitle = inc.title.replace(/\s*\([^)]*\)/g, ""); // remove (Execution -> ...)
+        shortTitle = shortTitle.replace(/on\s+[\w-]+/i, "").trim();
+
         return `
           <div class="incident-item ${activeClass}" onclick="selectIncident('${inc.incident_id}')">
             <div class="item-top">
               <span class="item-id">${inc.incident_id}</span>
               <span class="metric-badge ${sevClass}">${inc.severity}</span>
             </div>
-            <div class="item-title">${escapeHtml(inc.title)}</div>
+            <div class="item-title">${escapeHtml(shortTitle)}</div>
             <div class="item-meta">
               <span>🖥️ ${escapeHtml(host)}</span>
               <span>🚨 ${inc.alert_count} Alerts</span>
@@ -1226,7 +1465,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // Incident Details & Path Retrieval (/incidents/{id}/path)
+    // Active Incident Inspection (/incidents/{id}/path)
     // -------------------------------------------------------------------------
     async function selectIncident(id) {
       activeIncidentId = id;
@@ -1247,7 +1486,10 @@
     }
 
     function renderActiveIncident(inc) {
-      document.getElementById("activeIncTitle").textContent = `${inc.incident_id}: ${inc.title}`;
+      // Clean short title for active header
+      const hostStr = (inc.hosts || []).join(", ") || "Host";
+      let cleanTitle = inc.title.replace(/\s*\([^)]*\)/g, "").trim();
+      document.getElementById("activeIncTitle").textContent = `${inc.incident_id}: ${cleanTitle}`;
       
       const sevClass = `badge-${(inc.severity || 'low').toLowerCase()}`;
       document.getElementById("activeIncBadges").innerHTML = `
@@ -1259,28 +1501,46 @@
 
       const chipsContainer = document.getElementById("activeIncChips");
       chipsContainer.innerHTML = `
-        <span class="chip">🖥️ Host: <strong>${(inc.hosts || []).join(", ") || "N/A"}</strong></span>
-        <span class="chip">👤 Users: <strong>${(inc.users || []).join(", ") || "N/A"}</strong></span>
-        <span class="chip">📅 Time: <strong>${inc.first_seen} → ${inc.last_seen}</strong></span>
+        <span class="chip">🖥️ Affected Host: <strong>${hostStr}</strong></span>
+        <span class="chip">👤 Correlated Users: <strong>${(inc.users || []).join(", ") || "N/A"}</strong></span>
+        <span class="chip">📅 Time Window: <strong>${inc.first_seen} → ${inc.last_seen}</strong></span>
       `;
 
       // 1. Layout & Render Graph
       graphNodes = (inc.graph && inc.graph.nodes) ? inc.graph.nodes : [];
       graphEdges = (inc.graph && inc.graph.edges) ? inc.graph.edges : [];
       layoutHierarchicalGraph(graphNodes, graphEdges);
-      drawGraph();
+      fitGraphView();
+
+      // Pre-select the primary execution node for immediate inspection
+      const initialNode = Object.values(nodeLayout).find(nl => 
+        nl.node.node_type === "process" || nl.node.node_type === "process_group"
+      ) || Object.values(nodeLayout)[0];
+
+      if (initialNode) {
+        inspectNode(initialNode.node);
+        selectedNode = initialNode.node;
+        selectedEdge = null;
+        drawGraph();
+      }
 
       // 2. Render Timeline
       renderTimeline(inc.timeline || []);
 
-      // 3. Render Reach Next
+      // 3. Render Potential Next Access
       renderReachNext(inc.reach_next || []);
     }
 
     // -------------------------------------------------------------------------
-    // Structured Layered Attack Graph Layout & Rendering
+    // Clean Left-to-Right 5-Stage Attack Graph Layout
     // -------------------------------------------------------------------------
-    let expandedProcessGroups = new Set();
+    const STAGE_CONFIG = [
+      { id: 0, title: "1. AFFECTED HOST", color: "#0d9488", x: 120 },
+      { id: 1, title: "2. EXECUTION", color: "#7c3aed", x: 330 },
+      { id: 2, title: "3. PERSISTENCE", color: "#d97706", x: 550 },
+      { id: 3, title: "4. FILE & NETWORK", color: "#e11d48", x: 770 },
+      { id: 4, title: "5. DETECTIONS", color: "#dc2626", x: 990 }
+    ];
 
     function layoutHierarchicalGraph(nodes, edges) {
       nodeLayout = {};
@@ -1288,12 +1548,15 @@
 
       if (!nodes || nodes.length === 0) return;
 
-      // Step 1: Detect repeated process instances and group them for visual clarity
-      // Process instances with distinct PIDs remain separate in raw telemetry and can be expanded.
+      // Filter out weakly associated user nodes from the main horizontal canvas progression
+      // User attribution is shown in incident header chips and inspector without cluttering lines.
+      const relevantNodes = nodes.filter(n => n.node_type !== "user");
+
+      // Group repeated process instances visually (e.g. multiple powershell.exe instances)
       const processNameCounts = {};
       const processInstances = {};
 
-      nodes.forEach(n => {
+      relevantNodes.forEach(n => {
         if (n.node_type === "process") {
           const pName = (n.properties && n.properties.process_name) || (n.label || "").split(" ")[0] || "process.exe";
           processNameCounts[pName] = (processNameCounts[pName] || 0) + 1;
@@ -1302,17 +1565,16 @@
         }
       });
 
-      // Prepare active visual nodes and ID mapping
       const visualNodes = [];
       const idMap = {}; // raw_node_id -> visual_node_id
 
-      nodes.forEach(n => {
+      relevantNodes.forEach(n => {
         if (n.node_type === "process") {
           const pName = (n.properties && n.properties.process_name) || (n.label || "").split(" ")[0] || "process.exe";
           const count = processNameCounts[pName] || 1;
 
           if (count > 1 && !expandedProcessGroups.has(pName)) {
-            // Group collapsed: only add the group node once
+            // Group collapsed: represent as a single clean group card
             const groupId = `group:process:${pName}`;
             idMap[n.id] = groupId;
 
@@ -1320,7 +1582,7 @@
               visualNodes.push({
                 id: groupId,
                 node_type: "process_group",
-                label: `${pName} (${count} instances)`,
+                label: pName,
                 process_name: pName,
                 count: count,
                 instances: processInstances[pName],
@@ -1335,7 +1597,7 @@
           } else {
             // Expanded or single instance
             idMap[n.id] = n.id;
-            const pid = n.properties?.process_id ? ` [PID: ${n.properties.process_id}]` : "";
+            const pid = n.properties?.process_id ? ` (PID: ${n.properties.process_id})` : "";
             visualNodes.push({
               ...n,
               label: `${pName}${pid}`,
@@ -1350,82 +1612,88 @@
         }
       });
 
-      // Remap edges and deduplicate multi-fanout links
-      const seenEdges = new Set();
+      // Deduplicate edges between visual nodes while retaining all evidence references
+      const edgeMap = new Map();
       (edges || []).forEach(e => {
         const src = idMap[e.source] || e.source;
         const tgt = idMap[e.target] || e.target;
-        if (src === tgt) return; // avoid self loops
+        if (!src || !tgt || src === tgt) return;
 
-        const edgeKey = `${src}->${tgt}:${e.relationship_type}:${e.is_inferred}`;
-        if (!seenEdges.has(edgeKey)) {
-          seenEdges.add(edgeKey);
-          edgeLayout.push({
-            ...e,
+        // Skip edges connected to filtered-out user nodes
+        if (src.startsWith("user:") || tgt.startsWith("user:")) return;
+
+        const key = `${src}->${tgt}:${e.is_inferred}`;
+        if (!edgeMap.has(key)) {
+          edgeMap.set(key, {
             source: src,
             target: tgt,
+            relationship_type: e.relationship_type,
+            is_inferred: e.is_inferred,
+            evidence_references: [...(e.evidence_references || [])]
           });
+        } else {
+          const existing = edgeMap.get(key);
+          if (e.evidence_references) {
+            existing.evidence_references.push(...e.evidence_references);
+          }
         }
       });
 
-      // Step 2: Organize visual nodes into 6 aligned, logical progression layers
-      // Layer 0: Origin (Host & User)
-      // Layer 1: Parent Execution (e.g. winword.exe / Office)
-      // Layer 2: Secondary / Script Execution (e.g. powershell.exe)
-      // Layer 3: Persistence / Network Destinations (Windows Run Key / Outbound IPs)
-      // Layer 4: Impact Binary / Files (unknown.exe / *.locked files)
-      // Layer 5: ATT&CK Detections (Alerts)
-      const layers = [[], [], [], [], [], []];
+      edgeLayout = Array.from(edgeMap.values());
+
+      // 5 Logical Stages:
+      // Stage 0: Affected Host
+      // Stage 1: Execution (winword.exe, powershell.exe, cmd.exe)
+      // Stage 2: Persistence (Windows Run Key, Scheduled Tasks)
+      // Stage 3: File Activity & Supporting Network (unknown.exe, *.locked, outbound IP destinations)
+      // Stage 4: MITRE ATT&CK Detections (Alerts)
+      const stages = [[], [], [], [], []];
 
       visualNodes.forEach(n => {
         let col = 1;
-        if (n.node_type === "host" || n.node_type === "user") {
+        if (n.node_type === "host") {
           col = 0;
         } else if (n.node_type === "process" || n.node_type === "process_group") {
           const name = (n.process_name || n.label || "").toLowerCase();
-          if (name.includes("winword") || name.includes("office") || name.includes("explorer")) {
-            col = 1;
-          } else if (name.includes("powershell") || name.includes("cmd") || name.includes("wscript")) {
-            col = 2;
-          } else if (name.includes("unknown") || name.includes("ransom") || name.includes("crypt")) {
-            col = 4;
+          if (name.includes("unknown") || name.includes("ransom") || name.includes("crypt")) {
+            col = 3; // Impact payload binaries in Stage 3
           } else {
-            col = 2;
+            col = 1; // Execution in Stage 1
           }
-        } else if (n.node_type === "registry" || n.node_type === "network_dest") {
-          col = 3;
-        } else if (n.node_type === "file") {
-          col = 4;
+        } else if (n.node_type === "registry") {
+          col = 2; // Persistence in Stage 2
+        } else if (n.node_type === "file" || n.node_type === "network_dest") {
+          col = 3; // File activity and Supporting Network in Stage 3
         } else if (n.node_type === "alert") {
-          col = 5;
+          col = 4; // MITRE ATT&CK Detections in Stage 4
         }
-        layers[col].push(n);
+        stages[col].push(n);
       });
 
-      const w = canvas.width || 900;
-      const h = canvas.height || 520;
-      const activeColCount = 6;
-      const colWidth = (w - 180) / (activeColCount - 1);
+      // Compute Canvas Coordinate Grid with generous vertical spacing
+      const cardW = 158;
+      const cardH = 42;
 
-      layers.forEach((colNodes, colIdx) => {
-        if (!colNodes || colNodes.length === 0) return;
-        const x = 90 + colIdx * colWidth;
-        const rowHeight = h / (colNodes.length + 1);
+      stages.forEach((stageNodes, colIdx) => {
+        if (!stageNodes || stageNodes.length === 0) return;
+        const x = STAGE_CONFIG[colIdx].x;
+        const count = stageNodes.length;
+        const totalHeight = Math.max(340, count * 85);
+        const startY = 80 + Math.max(0, (380 - totalHeight) / 2);
+        const stepY = count > 1 ? (totalHeight - 60) / (count - 1) : 0;
 
-        colNodes.forEach((node, rowIdx) => {
-          const y = (rowIdx + 1) * rowHeight;
+        stageNodes.forEach((node, rowIdx) => {
+          const y = count === 1 ? 220 : (startY + rowIdx * stepY);
           nodeLayout[node.id] = {
             node: node,
             x: x,
             y: y,
-            w: 136,
-            h: 38,
+            w: cardW,
+            h: cardH,
             color: getNodeColor(node.node_type),
           };
         });
       });
-
-      transform = { x: 0, y: 0, scale: 1 };
     }
 
     function toggleProcessGroup(processName) {
@@ -1437,7 +1705,6 @@
       layoutHierarchicalGraph(graphNodes, graphEdges);
       drawGraph();
 
-      // Refresh inspector if a group node was selected
       if (selectedNode) {
         inspectNode(selectedNode);
       }
@@ -1446,7 +1713,6 @@
     function getNodeColor(type) {
       switch (type) {
         case "host": return "#0d9488"; // Teal
-        case "user": return "#4f46e5"; // Indigo
         case "process": return "#7c3aed"; // Purple
         case "process_group": return "#7c3aed"; // Purple
         case "registry": return "#d97706"; // Amber
@@ -1457,6 +1723,9 @@
       }
     }
 
+    // -------------------------------------------------------------------------
+    // Canvas Event Listeners & Interaction
+    // -------------------------------------------------------------------------
     function setupCanvas() {
       function resize() {
         const rect = canvas.parentElement.getBoundingClientRect();
@@ -1470,11 +1739,12 @@
       canvas.addEventListener("mousedown", (e) => {
         const pos = getCanvasMousePos(e);
         const clickedNode = findNodeAt(pos.x, pos.y);
+        dragDistance = 0;
+
         if (clickedNode) {
-          inspectNode(clickedNode);
-          selectedNode = clickedNode;
-          selectedEdge = null;
-          drawGraph();
+          draggedNode = clickedNode;
+          const nl = nodeLayout[clickedNode.id];
+          nodeDragOffset = { x: pos.x - nl.x, y: pos.y - nl.y };
           return;
         }
 
@@ -1487,34 +1757,74 @@
           return;
         }
 
-        isDragging = true;
-        dragStart = { x: e.clientX - transform.x, y: e.clientY - transform.y };
+        isPanning = true;
+        panStart = { x: e.clientX - transform.x, y: e.clientY - transform.y };
       });
 
       window.addEventListener("mousemove", (e) => {
-        if (isDragging) {
-          transform.x = e.clientX - dragStart.x;
-          transform.y = e.clientY - dragStart.y;
-          drawGraph();
-        } else {
+        if (draggedNode) {
+          dragDistance++;
           const pos = getCanvasMousePos(e);
-          const node = findNodeAt(pos.x, pos.y);
-          if (node !== hoveredNode) {
-            hoveredNode = node;
+          const nl = nodeLayout[draggedNode.id];
+          if (nl) {
+            nl.x = pos.x - nodeDragOffset.x;
+            nl.y = pos.y - nodeDragOffset.y;
             drawGraph();
           }
+          return;
+        }
+
+        if (isPanning) {
+          transform.x = e.clientX - panStart.x;
+          transform.y = e.clientY - panStart.y;
+          drawGraph();
+          return;
+        }
+
+        // Hover Detection
+        const pos = getCanvasMousePos(e);
+        const node = findNodeAt(pos.x, pos.y);
+        if (node !== hoveredNode) {
+          hoveredNode = node;
+          canvas.style.cursor = node ? "pointer" : "grab";
+          drawGraph();
         }
       });
 
-      window.addEventListener("mouseup", () => {
-        isDragging = false;
+      window.addEventListener("mouseup", (e) => {
+        if (draggedNode) {
+          // If barely moved, treat as a selection click
+          if (dragDistance < 4) {
+            inspectNode(draggedNode);
+            selectedNode = draggedNode;
+            selectedEdge = null;
+            drawGraph();
+          }
+          draggedNode = null;
+          return;
+        }
+
+        isPanning = false;
       });
 
+      // Small, controlled zoom increments centered precisely on cursor
       canvas.addEventListener("wheel", (e) => {
         e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.1 : 0.9;
-        zoomGraph(factor);
-      });
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Controlled 3.5% increment per tick (no wild jumps)
+        const zoomDelta = e.deltaY < 0 ? 1.035 : 0.965;
+        const newScale = Math.max(0.35, Math.min(2.2, transform.scale * zoomDelta));
+
+        // Keep cursor position invariant
+        transform.x = mouseX - (mouseX - transform.x) * (newScale / transform.scale);
+        transform.y = mouseY - (mouseY - transform.y) * (newScale / transform.scale);
+        transform.scale = newScale;
+
+        drawGraph();
+      }, { passive: false });
     }
 
     function getCanvasMousePos(e) {
@@ -1544,7 +1854,7 @@
         if (!p1 || !p2) continue;
 
         const dist = distToSegment({ x, y }, p1, p2);
-        if (dist <= 6) {
+        if (dist <= 7) {
           return edge;
         }
       }
@@ -1559,6 +1869,56 @@
       return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
     }
 
+    function zoomGraph(factor) {
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const newScale = Math.max(0.35, Math.min(2.2, transform.scale * factor));
+      transform.x = cx - (cx - transform.x) * (newScale / transform.scale);
+      transform.y = cy - (cy - transform.y) * (newScale / transform.scale);
+      transform.scale = newScale;
+      drawGraph();
+    }
+
+    function fitGraphView() {
+      const nodeIds = Object.keys(nodeLayout);
+      if (nodeIds.length === 0) {
+        transform = { x: 0, y: 0, scale: 1 };
+        drawGraph();
+        return;
+      }
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      nodeIds.forEach(id => {
+        const nl = nodeLayout[id];
+        minX = Math.min(minX, nl.x - nl.w / 2);
+        maxX = Math.max(maxX, nl.x + nl.w / 2);
+        minY = Math.min(minY, nl.y - nl.h / 2);
+        maxY = Math.max(maxY, nl.y + nl.h / 2);
+      });
+
+      const pad = 65;
+      const graphW = (maxX - minX) + pad * 2;
+      const graphH = (maxY - minY) + pad * 2;
+      const cW = canvas.width || 800;
+      const cH = canvas.height || 500;
+
+      const scaleX = cW / graphW;
+      const scaleY = cH / graphH;
+      const fitScale = Math.min(1.05, Math.max(0.55, Math.min(scaleX, scaleY)));
+
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      transform.scale = fitScale;
+      transform.x = (cW / 2) - centerX * fitScale;
+      transform.y = (cH / 2) - centerY * fitScale;
+
+      drawGraph();
+    }
+
+    // -------------------------------------------------------------------------
+    // Canvas Drawing Engine
+    // -------------------------------------------------------------------------
     function drawGraph() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1574,8 +1934,30 @@
       ctx.translate(transform.x, transform.y);
       ctx.scale(transform.scale, transform.scale);
 
-      // Draw Edges
-      edgeLayout.forEach(edge => {
+      // Draw Stage Column Guideline Tracks & Header Titles directly on Canvas
+      STAGE_CONFIG.forEach(stage => {
+        // Vertical guideline line
+        ctx.beginPath();
+        ctx.moveTo(stage.x, 48);
+        ctx.lineTo(stage.x, 420);
+        ctx.strokeStyle = "#f1f5f9";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Stage header badge
+        ctx.fillStyle = stage.color;
+        ctx.beginPath();
+        ctx.arc(stage.x - 42, 28, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.fillStyle = "#64748b";
+        ctx.textAlign = "left";
+        ctx.fillText(stage.title, stage.x - 32, 32);
+      });
+
+      // Draw Directed Edges with Perpendicular Label Offsets
+      edgeLayout.forEach((edge, edgeIdx) => {
         const p1 = nodeLayout[edge.source];
         const p2 = nodeLayout[edge.target];
         if (!p1 || !p2) return;
@@ -1587,7 +1969,7 @@
         ctx.lineTo(p2.x, p2.y);
 
         if (edge.is_inferred) {
-          ctx.setLineDash([4, 4]);
+          ctx.setLineDash([5, 5]);
           ctx.strokeStyle = isSelected ? "#0f172a" : "#94a3b8";
           ctx.lineWidth = isSelected ? 2 : 1.5;
         } else {
@@ -1598,7 +1980,7 @@
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Directed Arrowhead
+        // Directed Arrowhead at target card boundary
         const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
         const arrowDist = (p2.w / 2) + 2;
         const ax = p2.x - Math.cos(angle) * arrowDist;
@@ -1612,27 +1994,36 @@
         ctx.closePath();
         ctx.fill();
 
-        // Edge Type Label Badge
-        if (edge.relationship_type) {
-          const mx = (p1.x + p2.x) / 2;
-          const my = (p1.y + p2.y) / 2 - 4;
-          ctx.font = "9px ui-monospace, monospace";
-          ctx.textAlign = "center";
-          
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(mx - 32, my - 7, 64, 12);
-          ctx.strokeStyle = "#cbd5e1";
-          ctx.lineWidth = 0.5;
-          ctx.strokeRect(mx - 32, my - 7, 64, 12);
+        // Calculate Non-overlapping Label Position using Perpendicular Normal
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const perpX = -dy / dist;
+        const perpY = dx / dist;
 
-          ctx.fillStyle = edge.is_inferred ? "#64748b" : "#1e40af";
-          let relText = edge.relationship_type;
-          if (relText.length > 13) relText = relText.substring(0, 11) + "…";
-          ctx.fillText(relText, mx, my + 2);
-        }
+        // Alternate offset to prevent collisions between parallel lines
+        const offsetDist = ((edgeIdx % 3) - 1) * 12;
+        const mx = (p1.x + p2.x) / 2 + perpX * offsetDist;
+        const my = (p1.y + p2.y) / 2 + perpY * offsetDist;
+        
+        let labelText = getShortEdgeLabel(edge);
+        ctx.font = "9px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        
+        const badgeW = Math.max(46, ctx.measureText(labelText).width + 10);
+        const badgeH = 13;
+
+        ctx.fillStyle = edge.is_inferred ? "#f8fafc" : "#ffffff";
+        ctx.fillRect(mx - badgeW / 2, my - badgeH / 2, badgeW, badgeH);
+        ctx.strokeStyle = edge.is_inferred ? "#cbd5e1" : "#bfdbfe";
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(mx - badgeW / 2, my - badgeH / 2, badgeW, badgeH);
+
+        ctx.fillStyle = edge.is_inferred ? "#64748b" : "#1e40af";
+        ctx.fillText(labelText, mx, my + 3);
       });
 
-      // Draw Nodes as Clean Structured Light Cards
+      // Draw Structured Node Cards
       for (const id in nodeLayout) {
         const nl = nodeLayout[id];
         const node = nl.node;
@@ -1643,7 +2034,7 @@
         const x = nl.x - nl.w / 2;
         const y = nl.y - nl.h / 2;
 
-        // Card Body
+        // Card Container
         ctx.beginPath();
         roundRect(ctx, x, y, nl.w, nl.h, 5);
         ctx.fillStyle = "#ffffff";
@@ -1653,50 +2044,66 @@
         ctx.lineWidth = isSelected ? 2 : 1;
         ctx.stroke();
 
-        // Type Accent Pill on Left
+        // Left Color Bar Accent
         ctx.beginPath();
         roundRect(ctx, x, y, 4, nl.h, 2);
         ctx.fillStyle = nl.color;
         ctx.fill();
 
-        // Node Label
+        // Node Title
         ctx.fillStyle = "#0f172a";
         ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
         ctx.textAlign = "left";
         
         let label = node.label || node.id;
+        if (node.node_type === "network_dest") {
+          label = `Dest: ${node.properties?.destination || label}`;
+        }
         if (label.length > 17) {
           label = label.substring(0, 15) + "…";
         }
         ctx.fillText(label, x + 10, y + 17);
 
-        // Subtitle (Type & Instance Tag)
+        // Subtitle (Entity Type & Supporting Network Indicator)
         ctx.fillStyle = "#64748b";
         ctx.font = "9px -apple-system, sans-serif";
-        const subtitle = node.node_type === "process_group" ? "PROCESS GROUP" : node.node_type.toUpperCase();
-        ctx.fillText(subtitle, x + 10, y + 29);
+        let subtitle = node.node_type.toUpperCase();
+        if (node.node_type === "process_group") subtitle = `${node.count} INSTANCES`;
+        else if (node.node_type === "network_dest") subtitle = "SUPPORTING NETWORK";
+        ctx.fillText(subtitle, x + 10, y + 31);
 
-        // Group Stack Expand/Collapse Indicator
+        // Group Expand/Collapse Badge
         if (node.node_type === "process_group") {
           ctx.fillStyle = "#eff6ff";
-          ctx.fillRect(x + nl.w - 36, y + 8, 30, 20);
+          ctx.fillRect(x + nl.w - 38, y + 8, 32, 24);
           ctx.strokeStyle = "#bfdbfe";
-          ctx.strokeRect(x + nl.w - 36, y + 8, 30, 20);
+          ctx.strokeRect(x + nl.w - 38, y + 8, 32, 24);
           ctx.fillStyle = "#1d4ed8";
           ctx.font = "9px ui-monospace, monospace";
-          ctx.fillText(`+${node.count}`, x + nl.w - 30, y + 22);
+          ctx.fillText(`+${node.count}`, x + nl.w - 30, y + 24);
         } else if (node.can_collapse) {
           ctx.fillStyle = "#f1f5f9";
-          ctx.fillRect(x + nl.w - 24, y + 8, 18, 20);
+          ctx.fillRect(x + nl.w - 24, y + 8, 18, 24);
           ctx.strokeStyle = "#cbd5e1";
-          ctx.strokeRect(x + nl.w - 24, y + 8, 18, 20);
+          ctx.strokeRect(x + nl.w - 24, y + 8, 18, 24);
           ctx.fillStyle = "#475569";
           ctx.font = "9px ui-monospace, monospace";
-          ctx.fillText("−", x + nl.w - 18, y + 22);
+          ctx.fillText("−", x + nl.w - 18, y + 24);
         }
       }
 
       ctx.restore();
+    }
+
+    function getShortEdgeLabel(edge) {
+      if (edge.is_inferred) return "then (inferred)";
+      const t = (edge.relationship_type || "").toLowerCase();
+      if (t.includes("spawn") || t.includes("child")) return "spawned";
+      if (t.includes("persist") || t.includes("run_key") || t.includes("registry")) return "persisted";
+      if (t.includes("rename") || t.includes("modify") || t.includes("write")) return "renamed";
+      if (t.includes("network") || t.includes("outbound") || t.includes("connect")) return "traffic to";
+      if (t.includes("detect") || t.includes("alert")) return "detected";
+      return t.length > 12 ? t.substring(0, 10) + "…" : t;
     }
 
     function roundRect(ctx, x, y, width, height, radius) {
@@ -1713,6 +2120,9 @@
       ctx.closePath();
     }
 
+    // -------------------------------------------------------------------------
+    // Inspector Details (Nodes & Relationships)
+    // -------------------------------------------------------------------------
     function inspectNode(node) {
       document.getElementById("inspectorTitle").textContent = `Node: ${node.node_type}`;
       const body = document.getElementById("inspectorBody");
@@ -1731,6 +2141,20 @@
           <div class="prop-val">${escapeHtml(node.node_type)}</div>
         </div>
       `;
+
+      if (node.node_type === "network_dest") {
+        html += `
+          <div class="prop-row">
+            <div class="prop-key">Network Classification</div>
+            <div class="prop-val" style="background:#eff6ff; color:#1d4ed8; font-weight:600;">
+              Supporting Network Activity (Observed Outbound)
+            </div>
+          </div>
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">
+            Note: Network telemetry records outbound connectivity from this host. It does not establish attacker command-and-control or confirmed target compromise.
+          </div>
+        `;
+      }
 
       if (node.node_type === "process_group") {
         html += `
@@ -1783,7 +2207,9 @@
         </div>
         <div class="prop-row">
           <div class="prop-key">Classification</div>
-          <div class="prop-val">${edge.is_inferred ? "Inferred Progression (Temporal)" : "Confirmed Observed Action"}</div>
+          <div class="prop-val" style="font-weight:600; color:${edge.is_inferred ? '#64748b' : '#1d4ed8'}">
+            ${edge.is_inferred ? "Inferred Progression (Temporal Sequence)" : "Confirmed Observed Action"}
+          </div>
         </div>
         <div class="prop-row">
           <div class="prop-key">Source Entity</div>
@@ -1796,12 +2222,12 @@
       `;
 
       if (edge.evidence_references && edge.evidence_references.length > 0) {
-        html += `<div style="font-weight:600; margin-top:12px; margin-bottom:6px; font-size:11px;">Supporting Evidence</div>`;
+        html += `<div style="font-weight:600; margin-top:12px; margin-bottom:6px; font-size:11px;">Supporting Evidence Records (${edge.evidence_references.length})</div>`;
         edge.evidence_references.forEach(ev => {
           html += `
             <div style="margin-bottom:6px;">
               <button class="btn btn-outline" style="width:100%; font-size:11px;" onclick="openEvidenceModal('${ev.event_id}')">
-                🔍 Seek Offset: ${ev.byte_offset}
+                🔍 Seek Byte Offset: ${ev.byte_offset}
               </button>
             </div>
           `;
@@ -1809,17 +2235,6 @@
       }
 
       body.innerHTML = html;
-    }
-
-    function zoomGraph(factor) {
-      transform.scale *= factor;
-      transform.scale = Math.max(0.4, Math.min(2.5, transform.scale));
-      drawGraph();
-    }
-
-    function resetGraphView() {
-      transform = { x: 0, y: 0, scale: 1 };
-      drawGraph();
     }
 
     // -------------------------------------------------------------------------
@@ -1866,39 +2281,83 @@
     }
 
     // -------------------------------------------------------------------------
-    // Reach-Next Intelligence
+    // Potential Next Access (Rewritten Reach-Next with 4 Strict Statuses)
     // -------------------------------------------------------------------------
     function renderReachNext(targets) {
       const container = document.getElementById("reachGrid");
       if (!targets || targets.length === 0) {
         container.innerHTML = `
-          <div class="empty-state" style="grid-column: 1 / -1;">
-            🛡️ No Reachable Assets / Downstream Lateral Targets Observed.
+          <div class="empty-state" style="grid-column: 1 / -1; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px; padding:24px;">
+            <div style="font-size:14px; font-weight:600; color:var(--text-main); margin-bottom:6px;">No confirmed next system</div>
+            <div style="color:var(--text-muted); font-size:12px;">The available logs do not show successful remote access to another internal host.</div>
           </div>
         `;
         return;
       }
 
       container.innerHTML = targets.map(t => {
-        const isOutbound = t.verification_status === "observed_outbound_activity";
-        const pillClass = isOutbound ? "pill-outbound" : "pill-internal";
-        const pillLabel = isOutbound ? "Observed Outbound Telemetry (Access Unproven)" : "Potential Internal Connectivity";
+        let pillClass = "pill-outbound";
+        let statusTitle = "Outbound connection observed";
+        let statusExplainer = "A host sent network traffic to a destination. This does not prove attacker access.";
+        let accessConfirmedText = "No (Unconfirmed)";
+        let accessConfirmedColor = "var(--text-muted)";
+
+        const vStatus = (t.verification_status || "").toLowerCase();
+        const rel = (t.relationship || "").toLowerCase();
+
+        if (vStatus === "confirmed_access") {
+          pillClass = "pill-confirmed";
+          statusTitle = "Access confirmed";
+          statusExplainer = "Telemetry supports actual access or execution on the target.";
+          accessConfirmedText = "Yes (Confirmed)";
+          accessConfirmedColor = "var(--success-text)";
+        } else if (vStatus === "authenticated_only" || rel === "successful_authentication") {
+          pillClass = "pill-auth";
+          statusTitle = "Authentication succeeded";
+          statusExplainer = "A successful remote authentication was recorded. Downstream execution remains unproven.";
+          accessConfirmedText = "No (Authentication only)";
+        } else if (vStatus === "potential_internal_connectivity" || rel === "potential_internal_connectivity") {
+          pillClass = "pill-internal";
+          statusTitle = "Internal connection observed";
+          statusExplainer = "Traffic between internal systems was recorded. This alone does not prove successful access.";
+          accessConfirmedText = "No (Traffic observed only)";
+        } else {
+          pillClass = "pill-outbound";
+          statusTitle = "Outbound connection observed";
+          statusExplainer = "A host sent network traffic to a destination. This does not prove attacker access.";
+          accessConfirmedText = "No (Observed telemetry only)";
+        }
 
         return `
           <div class="reach-card">
             <div class="reach-header">
-              <span class="reach-target-title">${escapeHtml(t.target)}</span>
-              <span class="reach-pill ${pillClass}">${pillLabel}</span>
+              <div>
+                <span class="reach-target-title">${escapeHtml(t.target)}</span>
+                <div style="font-size:11px; color:var(--text-subtle); margin-top:2px;">
+                  From Host: <strong>${escapeHtml(t.from_host)}</strong>
+                </div>
+              </div>
+              <span class="reach-pill ${pillClass}">${statusTitle}</span>
             </div>
-            <div style="font-size:11px; color:var(--text-subtle);">
-              From: <strong>${escapeHtml(t.from_host)}</strong> | Target Type: ${escapeHtml(t.target_type)}
+
+            <div class="reach-field-row">
+              <span class="reach-field-label">Verification Status</span>
+              <span class="reach-field-val" style="font-size:11px; color:var(--text-muted);">${statusExplainer}</span>
             </div>
-            <div class="reach-reasoning">
-              ${escapeHtml(t.reasoning)}
+
+            <div class="reach-field-row">
+              <span class="reach-field-label">Access Confirmed</span>
+              <span class="reach-field-val" style="font-weight:600; color:${accessConfirmedColor};">${accessConfirmedText}</span>
             </div>
+
+            <div class="reach-field-row">
+              <span class="reach-field-label">What the Logs Actually Show</span>
+              <div class="reach-reasoning">${escapeHtml(t.reasoning)}</div>
+            </div>
+
             ${(t.evidence_references && t.evidence_references.length > 0 && t.evidence_references[0].event_id) ? `
               <div>
-                <button class="btn btn-outline" style="font-size:11px;" onclick="openEvidenceModal('${t.evidence_references[0].event_id}')">
+                <button class="btn btn-outline" style="font-size:11px; width:100%;" onclick="openEvidenceModal('${t.evidence_references[0].event_id}')">
                   🔍 Verify Telemetry Provenance (Offset: ${t.evidence_references[0].byte_offset})
                 </button>
               </div>
@@ -1955,7 +2414,7 @@
       if (tabId === "graphTab") {
         setTimeout(() => {
           setupCanvas();
-          drawGraph();
+          fitGraphView();
         }, 50);
       }
     }

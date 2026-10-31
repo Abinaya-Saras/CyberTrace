@@ -15,11 +15,13 @@ Provides minimal, high-performance HTTP endpoints for:
 from contextlib import asynccontextmanager
 import json
 import logging
+import math
 import os
 import shutil
+import uuid
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Query, File, UploadFile
+from fastapi import FastAPI, HTTPException, Query, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -116,6 +118,21 @@ class IngestionRequest(BaseModel):
     flush_size: int = Field(default=5000, description="Streaming chunk row count for Parquet writing")
 
 
+class InitUploadRequest(BaseModel):
+    filename: str = Field(..., description="Original name of the log file")
+    total_size: int = Field(..., description="Total file size in bytes")
+    chunk_size: int = Field(default=33554432, description="Chunk size in bytes (default: 32MB)")
+
+
+class FinalizeUploadRequest(BaseModel):
+    upload_id: str = Field(..., description="Unique upload session identifier")
+    trigger_pipeline: bool = Field(default=True, description="Whether to start parsing and correlation immediately")
+
+
+# Active chunked upload sessions
+upload_sessions: dict[str, dict] = {}
+
+
 # -----------------------------------------------------------------------------
 # Ingestion & System Status Endpoints
 # -----------------------------------------------------------------------------
@@ -199,6 +216,215 @@ async def upload_and_process_log(file: UploadFile = File(...)):
     except Exception as e:
         logger.exception("Processing uploaded file failed")
         raise HTTPException(status_code=500, detail=f"Pipeline processing failed: {str(e)}")
+
+
+# -----------------------------------------------------------------------------
+# Resumable Chunked Large-File Upload Endpoints
+# -----------------------------------------------------------------------------
+
+@app.post("/api/upload/init")
+def init_chunked_upload(req: InitUploadRequest):
+    """
+    Initialize a chunked upload session for large files (e.g. 6.5GB firex-10G.log).
+    Allocates a temporary file on disk, validates parameters, and returns an upload_id.
+    """
+    if req.total_size <= 0:
+        raise HTTPException(status_code=400, detail="Invalid total_size: must be positive")
+    if req.chunk_size <= 0:
+        raise HTTPException(status_code=400, detail="Invalid chunk_size: must be positive")
+
+    upload_id = uuid.uuid4().hex[:12]
+    total_chunks = math.ceil(req.total_size / req.chunk_size)
+
+    upload_dir = "data/uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    safe_filename = os.path.basename(req.filename)
+    temp_file = os.path.join(upload_dir, f".tmp_{upload_id}_{safe_filename}")
+
+    # Initialize empty temp file
+    with open(temp_file, "wb") as f:
+        pass
+
+    upload_sessions[upload_id] = {
+        "upload_id": upload_id,
+        "filename": safe_filename,
+        "total_size": req.total_size,
+        "chunk_size": req.chunk_size,
+        "total_chunks": total_chunks,
+        "temp_file": temp_file,
+        "received_chunks": set(),
+        "bytes_written": 0,
+        "status": "in_progress",
+    }
+
+    return {
+        "upload_id": upload_id,
+        "filename": safe_filename,
+        "total_size": req.total_size,
+        "chunk_size": req.chunk_size,
+        "total_chunks": total_chunks,
+    }
+
+
+@app.post("/api/upload/chunk")
+async def upload_chunk(
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    file: UploadFile = File(...),
+):
+    """
+    Write a single chunk directly to the temporary file on disk at its exact byte offset.
+    Never holds more than the single chunk size in memory (O(1) RAM).
+    """
+    session = upload_sessions.get(upload_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Upload session '{upload_id}' not found or expired")
+
+    if chunk_index < 0 or chunk_index >= session["total_chunks"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid chunk_index {chunk_index}: must be 0 <= idx < {session['total_chunks']}",
+        )
+
+    temp_file = session["temp_file"]
+    offset = chunk_index * session["chunk_size"]
+
+    try:
+        chunk_data = await file.read()
+        chunk_len = len(chunk_data)
+
+        # Write chunk directly at offset
+        with open(temp_file, "r+b") as f:
+            f.seek(offset)
+            f.write(chunk_data)
+
+        session["received_chunks"].add(chunk_index)
+        received_count = len(session["received_chunks"])
+        progress_pct = round((received_count / session["total_chunks"]) * 100, 1)
+
+        return {
+            "status": "chunk_received",
+            "upload_id": upload_id,
+            "chunk_index": chunk_index,
+            "chunk_bytes": chunk_len,
+            "received_count": received_count,
+            "total_chunks": session["total_chunks"],
+            "progress_pct": progress_pct,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to write chunk {chunk_index} for upload {upload_id}")
+        raise HTTPException(status_code=500, detail=f"Failed to write chunk: {str(e)}")
+
+
+@app.get("/api/upload/status/{upload_id}")
+def get_upload_status(upload_id: str):
+    """
+    Return current progress and list of received chunks for resumability.
+    Allows clients to resume interrupted uploads without re-uploading existing chunks.
+    """
+    session = upload_sessions.get(upload_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Upload session '{upload_id}' not found")
+
+    return {
+        "upload_id": upload_id,
+        "filename": session["filename"],
+        "total_size": session["total_size"],
+        "total_chunks": session["total_chunks"],
+        "received_count": len(session["received_chunks"]),
+        "received_chunks": sorted(list(session["received_chunks"])),
+        "is_complete": len(session["received_chunks"]) == session["total_chunks"],
+    }
+
+
+@app.post("/api/upload/finalize")
+def finalize_chunked_upload(req: FinalizeUploadRequest):
+    """
+    Validate all chunks have been received and file size matches total_size.
+    Atomically renames the temporary file to its final destination (zero copy).
+    Optionally triggers the parsing, detection, and correlation pipeline.
+    """
+    session = upload_sessions.get(req.upload_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Upload session '{req.upload_id}' not found")
+
+    if len(session["received_chunks"]) != session["total_chunks"]:
+        missing = set(range(session["total_chunks"])) - session["received_chunks"]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Upload incomplete: {len(missing)} chunks missing (e.g. {sorted(list(missing))[:5]})",
+        )
+
+    temp_file = session["temp_file"]
+    if not os.path.isfile(temp_file):
+        raise HTTPException(status_code=500, detail="Temporary upload file missing from disk")
+
+    actual_size = os.path.getsize(temp_file)
+    if actual_size != session["total_size"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Size mismatch: expected {session['total_size']} bytes, found {actual_size} bytes on disk",
+        )
+
+    # Atomic rename to final path (zero-copy)
+    final_path = os.path.join("data/uploads", session["filename"])
+    try:
+        os.replace(temp_file, final_path)
+    except Exception as e:
+        logger.exception("Atomic file rename failed")
+        raise HTTPException(status_code=500, detail=f"Failed to finalize file: {str(e)}")
+
+    # Clean up session
+    del upload_sessions[req.upload_id]
+
+    # Validate format
+    fmt = detect_format(final_path)
+    if fmt == "unknown":
+        if os.path.exists(final_path):
+            os.remove(final_path)
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported log format. Only NDJSON/JSON and FortiGate key-value logs are supported.",
+        )
+
+    pipeline_result = None
+    if req.trigger_pipeline:
+        try:
+            stats = ingest_file(final_path, output_dir="data/processed")
+            state["last_ingestion"] = stats.to_dict()
+            load_pipeline_data(stats.output_file)
+            pipeline_result = stats.to_dict()
+        except Exception as e:
+            logger.exception("Pipeline execution after finalize failed")
+            raise HTTPException(status_code=500, detail=f"Pipeline processing failed: {str(e)}")
+
+    return {
+        "status": "success",
+        "filename": os.path.basename(final_path),
+        "file_path": final_path,
+        "file_size": actual_size,
+        "format": fmt,
+        "pipeline": pipeline_result,
+        "incidents_count": len(state["incidents"]),
+    }
+
+
+@app.delete("/api/upload/{upload_id}")
+def abort_chunked_upload(upload_id: str):
+    """Abort an upload session and remove its temporary file."""
+    session = upload_sessions.pop(upload_id, None)
+    if not session:
+        return {"status": "not_found", "upload_id": upload_id}
+
+    temp_file = session["temp_file"]
+    if os.path.exists(temp_file):
+        try:
+            os.remove(temp_file)
+        except Exception:
+            pass
+
+    return {"status": "aborted", "upload_id": upload_id}
 
 
 @app.get("/api/status")
