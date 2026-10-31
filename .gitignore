@@ -5,8 +5,11 @@ __pycache__/
 data/raw/*
 data/processed/*
 data/samples/*
+data/uploads/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/samples/.gitkeep
+!data/uploads/.gitkeep
 firex-10G.log
 *.log
+

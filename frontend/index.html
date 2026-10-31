@@ -6,517 +6,498 @@
   <title>CyberTrace — Kill Chain & Attack Path Analysis</title>
   <style>
     :root {
-      --bg-primary: #0a0d12;
-      --bg-secondary: #12171f;
-      --bg-tertiary: #1a222d;
-      --bg-card: #151c26;
-      --bg-card-hover: #1e2736;
-      --border-color: #273444;
-      --border-focus: #3b82f6;
-      --text-primary: #f1f5f9;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --accent-blue: #3b82f6;
-      --accent-cyan: #06b6d4;
-      --accent-purple: #8b5cf6;
-      --accent-green: #10b981;
-      --accent-amber: #f59e0b;
-      --accent-red: #ef4444;
-      --crit-color: #ef4444;
-      --high-color: #f97316;
-      --med-color: #f59e0b;
-      --low-color: #3b82f6;
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --bg-hover: #e2e8f0;
+      
+      --border-color: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --border-focus: #2563eb;
+
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #64748b;
+      --text-inverse: #ffffff;
+
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --primary-border: #bfdbfe;
+
+      --crit-text: #991b1b;
+      --crit-bg: #fef2f2;
+      --crit-border: #fecaca;
+
+      --high-text: #9a3412;
+      --high-bg: #fff7ed;
+      --high-border: #fed7aa;
+
+      --med-text: #854d0e;
+      --med-bg: #fefce8;
+      --med-border: #fef08a;
+
+      --low-text: #1e40af;
+      --low-bg: #eff6ff;
+      --low-border: #bfdbfe;
+
+      --success-text: #166534;
+      --success-bg: #f0fdf4;
+      --success-border: #bbf7d0;
+
       --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
+      background-color: var(--bg-page);
+      color: var(--text-main);
       font-family: var(--font-family);
+      font-size: 13px;
       line-height: 1.5;
-      font-size: 14px;
       overflow-x: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* Header */
+    /* -------------------------------------------------------------------------
+       1. Top Navigation
+       ------------------------------------------------------------------------- */
     header {
-      background-color: var(--bg-secondary);
+      background-color: var(--bg-surface);
       border-bottom: 1px solid var(--border-color);
-      padding: 12px 24px;
+      padding: 10px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      flex-shrink: 0;
     }
 
-    .brand {
+    .brand-wrap {
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
-    .brand-icon {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
-      border-radius: 8px;
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 800;
-      color: #fff;
-      font-size: 16px;
-    }
-
-    .brand-title {
-      font-size: 18px;
       font-weight: 700;
+      font-size: 15px;
       letter-spacing: -0.5px;
-      background: linear-gradient(90deg, #fff, var(--text-secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
     }
 
-    .brand-subtitle {
-      font-size: 11px;
-      color: var(--accent-cyan);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-weight: 600;
+    .brand-text h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.3px;
+      display: inline-block;
+      margin-right: 8px;
     }
 
-    .header-actions {
+    .brand-text span {
+      font-size: 12px;
+      color: var(--text-subtle);
+      font-weight: 400;
+    }
+
+    .header-status {
       display: flex;
       align-items: center;
       gap: 16px;
+      font-size: 12px;
     }
 
-    .status-pill {
-      display: flex;
+    .status-badge {
+      display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: 12px;
-      padding: 4px 10px;
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: var(--accent-green);
-      border-radius: 20px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--success-bg);
+      border: 1px solid var(--success-border);
+      color: var(--success-text);
+      font-weight: 500;
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: var(--accent-green);
-      box-shadow: 0 0 8px var(--accent-green);
+      background: #16a34a;
     }
 
-    /* Main Container */
-    .app-container {
-      display: flex;
-      flex-direction: column;
-      height: calc(100vh - 57px);
-    }
-
-    /* Ingestion Toolbar */
-    .ingest-bar {
-      background-color: var(--bg-secondary);
+    /* -------------------------------------------------------------------------
+       2. Ingestion Toolbar & Metrics Strip
+       ------------------------------------------------------------------------- */
+    .toolbar-strip {
+      background-color: var(--bg-surface);
       border-bottom: 1px solid var(--border-color);
-      padding: 12px 24px;
+      padding: 8px 20px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       gap: 16px;
+      flex-shrink: 0;
     }
 
-    .ingest-form {
+    .upload-group {
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex: 1;
-      max-width: 600px;
+      gap: 8px;
     }
 
-    .ingest-input {
-      background-color: var(--bg-tertiary);
+    .file-select-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-subtle);
       border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      flex: 1;
-      font-family: inherit;
+      border-radius: 5px;
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
     }
 
-    .ingest-input:focus {
-      outline: none;
-      border-color: var(--border-focus);
+    .file-select-label:hover {
+      background: var(--bg-hover);
+    }
+
+    #logFileInput {
+      display: none;
+    }
+
+    .selected-filename {
+      font-size: 12px;
+      color: var(--text-muted);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .btn {
-      background: linear-gradient(135deg, var(--accent-blue), #2563eb);
-      color: #fff;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 5px;
+      border: 1px solid transparent;
       cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-outline {
+      background: var(--bg-surface);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-outline:hover {
+      background: var(--bg-subtle);
+    }
+
+    .metrics-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .metric-item {
       display: flex;
       align-items: center;
       gap: 6px;
-      transition: all 0.2s;
-    }
-
-    .btn:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-
-    .btn:active {
-      transform: translateY(0);
-    }
-
-    .btn-secondary {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-    }
-
-    .btn-secondary:hover {
-      background: var(--bg-card-hover);
-      color: var(--text-primary);
-    }
-
-    .ingest-metrics {
-      display: flex;
-      align-items: center;
-      gap: 20px;
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--text-muted);
     }
 
-    .metric-item strong {
-      color: var(--text-primary);
+    .metric-value {
+      font-weight: 700;
+      color: var(--text-main);
+      font-size: 13px;
     }
 
-    /* Content Layout */
-    .content-layout {
-      display: grid;
-      grid-template-columns: 380px 1fr;
+    .metric-badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-critical { background: var(--crit-bg); color: var(--crit-text); border: 1px solid var(--crit-border); }
+    .badge-high { background: var(--high-bg); color: var(--high-text); border: 1px solid var(--high-border); }
+    .badge-medium { background: var(--med-bg); color: var(--med-text); border: 1px solid var(--med-border); }
+    .badge-low { background: var(--low-bg); color: var(--low-text); border: 1px solid var(--low-border); }
+
+    /* -------------------------------------------------------------------------
+       3. Main Layout Container (Sidebar + Detail)
+       ------------------------------------------------------------------------- */
+    .app-body {
+      display: flex;
       flex: 1;
       overflow: hidden;
     }
 
-    /* Left Sidebar: Incident Dashboard */
-    .sidebar-panel {
-      background-color: var(--bg-secondary);
+    /* Left Sidebar: Incident List */
+    .sidebar {
+      width: 340px;
+      background: var(--bg-surface);
       border-right: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      flex-shrink: 0;
     }
 
-    .kpi-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      padding: 14px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .kpi-card {
-      background-color: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 8px;
-      text-align: center;
-    }
-
-    .kpi-val {
-      font-size: 18px;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .kpi-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .kpi-crit { color: var(--crit-color); }
-    .kpi-high { color: var(--high-color); }
-    .kpi-med { color: var(--med-color); }
-
-    .filter-bar {
+    .sidebar-header {
       padding: 10px 14px;
-      display: flex;
-      gap: 8px;
       border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sidebar-search-row {
+      display: flex;
+      gap: 6px;
     }
 
     .search-input {
-      background-color: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 12px;
       flex: 1;
+      padding: 6px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      font-size: 12px;
+      color: var(--text-main);
+      background: var(--bg-subtle);
     }
 
-    .select-input {
-      background-color: var(--bg-tertiary);
+    .search-input:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      background: var(--bg-surface);
+    }
+
+    .filter-select {
+      padding: 6px 8px;
       border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      padding: 6px 10px;
-      border-radius: 6px;
+      border-radius: 5px;
       font-size: 12px;
+      color: var(--text-main);
+      background: var(--bg-subtle);
+      cursor: pointer;
     }
 
     .incident-list {
       flex: 1;
       overflow-y: auto;
-      padding: 10px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      padding: 6px 0;
     }
 
-    .incident-card {
-      background-color: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px;
+    .incident-item {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
       cursor: pointer;
-      transition: all 0.15s ease-in-out;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      transition: background 0.1s;
+      border-left: 3px solid transparent;
     }
 
-    .incident-card:hover {
-      background-color: var(--bg-card-hover);
-      border-color: rgba(59, 130, 246, 0.4);
-      transform: translateX(2px);
+    .incident-item:hover {
+      background: var(--bg-subtle);
     }
 
-    .incident-card.active {
-      border-color: var(--accent-blue);
-      background-color: #172334;
-      box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+    .incident-item.active {
+      background: var(--primary-light);
+      border-left-color: var(--primary);
     }
 
-    .card-header {
+    .item-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 4px;
     }
 
-    .inc-id {
+    .item-id {
       font-weight: 700;
       font-size: 12px;
-      color: var(--text-primary);
+      color: var(--text-main);
     }
 
-    .badge {
-      font-size: 10px;
+    .item-title {
+      font-size: 12px;
+      color: var(--text-main);
+      font-weight: 500;
+      margin-bottom: 6px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.4;
+    }
+
+    .item-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-subtle);
+    }
+
+    /* Right Main Panel: Detail & Tabs */
+    .main-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-page);
+      overflow: hidden;
+    }
+
+    .incident-header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 20px;
+      flex-shrink: 0;
+    }
+
+    .inc-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .inc-title {
+      font-size: 16px;
       font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      color: var(--text-main);
+      letter-spacing: -0.2px;
     }
 
-    .badge-critical { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
-    .badge-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
-    .badge-medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
-    .badge-low { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
-
-    .card-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-      line-height: 1.3;
+    .inc-summary {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      line-height: 1.5;
+      background: var(--bg-subtle);
+      padding: 8px 12px;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
     }
 
-    .card-meta {
+    .chips-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
       font-size: 11px;
       color: var(--text-muted);
     }
 
-    .meta-tag {
-      background: var(--bg-tertiary);
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: var(--text-secondary);
+    .chip strong {
+      color: var(--text-main);
     }
 
-    /* Right Investigation Panel */
-    .investigation-panel {
-      background-color: var(--bg-primary);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .detail-header {
-      background-color: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
-      padding: 14px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-    }
-
-    .detail-title-group h2 {
-      font-size: 17px;
-      font-weight: 700;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .detail-desc {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-top: 4px;
-      max-width: 900px;
-    }
-
-    .detail-meta-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .pill {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 12px;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-    }
-
-    .nav-tabs {
-      background-color: var(--bg-secondary);
+    /* Navigation Tabs */
+    .tab-strip {
+      background: var(--bg-surface);
       border-bottom: 1px solid var(--border-color);
       display: flex;
-      padding: 0 24px;
-      gap: 20px;
+      gap: 2px;
+      padding: 0 20px;
+      flex-shrink: 0;
     }
 
-    .tab-btn {
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      padding: 10px 0;
+    .tab-item {
+      padding: 10px 16px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 500;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
       cursor: pointer;
-      position: relative;
-      transition: color 0.2s;
+      transition: all 0.15s;
     }
 
-    .tab-btn:hover {
-      color: var(--text-primary);
+    .tab-item:hover {
+      color: var(--text-main);
     }
 
-    .tab-btn.active {
-      color: var(--accent-cyan);
-    }
-
-    .tab-btn.active::after {
-      content: "";
-      position: absolute;
-      bottom: -1px;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background-color: var(--accent-cyan);
+    .tab-item.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 600;
     }
 
     /* Tab Content Viewports */
-    .tab-viewport {
+    .viewport {
       flex: 1;
-      overflow: auto;
-      padding: 18px 24px;
       display: none;
+      overflow: hidden;
+      position: relative;
     }
 
-    .tab-viewport.active {
+    .viewport.active {
       display: flex;
-      flex-direction: column;
-      gap: 16px;
     }
 
-    /* Graph Canvas Viewport */
-    .graph-container {
+    /* -------------------------------------------------------------------------
+       4. Attack Graph Viewport (Canvas + Controls + Inspector)
+       ------------------------------------------------------------------------- */
+    #graphTab {
+      flex-direction: row;
+      background: #fafafa;
+    }
+
+    .graph-stage {
       flex: 1;
-      background-color: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
       position: relative;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      min-height: 480px;
-    }
-
-    .graph-toolbar {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      display: flex;
-      gap: 8px;
-      z-index: 10;
-      background: rgba(18, 23, 31, 0.85);
-      backdrop-filter: blur(8px);
-      padding: 4px;
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-    }
-
-    .graph-legend {
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      background: rgba(18, 23, 31, 0.85);
-      backdrop-filter: blur(8px);
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      font-size: 11px;
-      z-index: 10;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .legend-circle {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
     }
 
     #graphCanvas {
@@ -530,208 +511,320 @@
       cursor: grabbing;
     }
 
-    .graph-inspector {
+    .graph-controls {
       position: absolute;
-      top: 12px;
-      left: 12px;
-      width: 280px;
-      max-height: calc(100% - 70px);
-      background: rgba(21, 28, 38, 0.95);
-      backdrop-filter: blur(8px);
+      top: 14px;
+      left: 14px;
+      background: var(--bg-surface);
       border: 1px solid var(--border-color);
       border-radius: 6px;
-      padding: 12px;
-      font-size: 12px;
-      overflow-y: auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      display: flex;
+      gap: 2px;
+      padding: 3px;
       z-index: 10;
-      display: none;
     }
 
-    .graph-inspector h4 {
-      font-size: 13px;
-      color: #fff;
-      margin-bottom: 8px;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 4px;
-    }
-
-    /* Timeline View */
-    .timeline-stream {
+    .ctrl-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
       display: flex;
-      flex-direction: column;
-      position: relative;
-      margin-left: 20px;
-      padding-left: 20px;
-      border-left: 2px solid var(--border-color);
-      gap: 16px;
-    }
-
-    .timeline-node {
-      position: relative;
-      background-color: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px 16px;
-      transition: border-color 0.2s;
-    }
-
-    .timeline-node:hover {
-      border-color: var(--accent-cyan);
-    }
-
-    .timeline-dot {
-      position: absolute;
-      left: -29px;
-      top: 16px;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background-color: var(--bg-secondary);
-      border: 2px solid var(--accent-cyan);
-    }
-
-    .t-header {
-      display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 4px;
-    }
-
-    .t-title {
-      font-weight: 600;
+      justify-content: center;
+      cursor: pointer;
       font-size: 13px;
-      color: #fff;
-    }
-
-    .t-time {
-      font-family: monospace;
-      font-size: 11px;
+      font-weight: 600;
       color: var(--text-muted);
     }
 
-    .t-body {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-bottom: 8px;
+    .ctrl-btn:hover {
+      background: var(--bg-subtle);
+      color: var(--text-main);
     }
 
-    .t-evidence-btn {
-      font-size: 11px;
-      color: var(--accent-cyan);
-      background: rgba(6, 182, 212, 0.1);
-      border: 1px solid rgba(6, 182, 212, 0.3);
-      padding: 2px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .t-evidence-btn:hover {
-      background: rgba(6, 182, 212, 0.2);
-    }
-
-    /* Reach-Next View (FR-6) */
-    .reach-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 14px;
-    }
-
-    .reach-card {
-      background-color: var(--bg-card);
+    .graph-legend {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      background: rgba(255, 255, 255, 0.95);
       border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 14px;
+      border-radius: 6px;
+      padding: 8px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      font-size: 11px;
       display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-line {
+      width: 18px;
+      height: 2px;
+    }
+
+    /* Right Inspector Side-Drawer */
+    .inspector-panel {
+      width: 300px;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .inspector-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .inspector-body {
+      padding: 14px;
+      font-size: 12px;
+    }
+
+    .prop-row {
+      margin-bottom: 10px;
+    }
+
+    .prop-key {
+      font-size: 11px;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .prop-val {
+      font-size: 12px;
+      color: var(--text-main);
+      word-break: break-word;
+      font-family: var(--font-mono);
+      background: var(--bg-subtle);
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+    }
+
+    /* -------------------------------------------------------------------------
+       5. Chronological Timeline Viewport (Compact Table / Stream)
+       ------------------------------------------------------------------------- */
+    #timelineTab {
+      padding: 16px 20px;
+      overflow-y: auto;
       flex-direction: column;
       gap: 8px;
     }
 
-    .reach-status-pill {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 4px;
+    .timeline-table-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+
+    table.timeline-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .timeline-table th {
+      background: var(--bg-subtle);
+      padding: 8px 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      width: fit-content;
     }
 
-    .reach-status-outbound {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fbbf24;
-      border: 1px solid rgba(245, 158, 11, 0.3);
+    .timeline-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main);
+      vertical-align: top;
     }
 
-    .reach-status-internal {
-      background: rgba(59, 130, 246, 0.15);
-      color: #60a5fa;
-      border: 1px solid rgba(59, 130, 246, 0.3);
+    .timeline-table tr:last-child td {
+      border-bottom: none;
     }
 
-    .reach-target {
-      font-size: 15px;
+    .timeline-table tr:hover td {
+      background: var(--bg-subtle);
+    }
+
+    .t-step-idx {
+      font-weight: 600;
+      color: var(--text-subtle);
+      font-size: 11px;
+      width: 40px;
+    }
+
+    .t-time-val {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .t-cmd-line {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--bg-subtle);
+      padding: 3px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      margin-top: 4px;
+      word-break: break-all;
+    }
+
+    /* -------------------------------------------------------------------------
+       6. Reach-Next Intelligence Viewport
+       ------------------------------------------------------------------------- */
+    #reachTab {
+      padding: 16px 20px;
+      overflow-y: auto;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .reach-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 12px;
+    }
+
+    .reach-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+
+    .reach-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .reach-target-title {
+      font-size: 14px;
       font-weight: 700;
-      color: #fff;
-      font-family: monospace;
+      font-family: var(--font-mono);
+      color: var(--text-main);
+    }
+
+    .reach-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .pill-outbound {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+    }
+
+    .pill-internal {
+      background: #fefce8;
+      border: 1px solid #fef08a;
+      color: #854d0e;
     }
 
     .reach-reasoning {
       font-size: 12px;
-      color: var(--text-secondary);
-      line-height: 1.4;
+      color: var(--text-muted);
+      line-height: 1.5;
+      background: var(--bg-subtle);
+      padding: 8px 10px;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
     }
 
-    /* Evidence Modal */
+    /* -------------------------------------------------------------------------
+       7. Raw Evidence Modal (FR-1 Disk Seek Provenance)
+       ------------------------------------------------------------------------- */
     .modal-backdrop {
       position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(4px);
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.4);
       display: none;
       align-items: center;
       justify-content: center;
       z-index: 1000;
     }
 
-    .modal-dialog {
-      background-color: var(--bg-secondary);
-      border: 1px solid var(--border-color);
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
       border-radius: 8px;
       width: 90%;
-      max-width: 760px;
+      max-width: 740px;
       max-height: 85vh;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
     }
 
-    .modal-header {
-      padding: 14px 20px;
+    .modal-head {
+      padding: 12px 18px;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .modal-header h3 {
-      font-size: 15px;
+    .modal-head h3 {
+      font-size: 14px;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-main);
     }
 
-    .close-btn {
-      background: none;
+    .modal-close-btn {
+      background: transparent;
       border: none;
-      color: var(--text-muted);
-      font-size: 18px;
+      font-size: 16px;
       cursor: pointer;
+      color: var(--text-subtle);
     }
 
     .modal-body {
-      padding: 16px 20px;
+      padding: 16px 18px;
       overflow-y: auto;
       font-size: 12px;
       display: flex;
@@ -739,225 +832,630 @@
       gap: 12px;
     }
 
-    .raw-code-block {
-      background-color: #05080c;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 12px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11px;
-      color: #a5d6ff;
-      white-space: pre-wrap;
-      word-break: break-all;
-      max-height: 380px;
-      overflow-y: auto;
-    }
-
-    /* Empty States */
-    .empty-state {
+    .modal-meta-strip {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 60px 20px;
-      color: var(--text-muted);
-      text-align: center;
+      gap: 16px;
+      padding: 8px 12px;
+      background: var(--bg-subtle);
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      font-size: 11px;
     }
 
-    .empty-state svg {
-      width: 48px;
-      height: 48px;
-      margin-bottom: 12px;
-      opacity: 0.5;
+    .raw-code-box {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      line-height: 1.5;
+      max-height: 380px;
+    }
+
+    .empty-state {
+      padding: 30px;
+      text-align: center;
+      color: var(--text-subtle);
+      font-size: 13px;
     }
   </style>
 </head>
 <body>
 
-  <!-- App Header -->
+  <!-- 1. Top Navigation -->
   <header>
-    <div class="brand">
-      <div class="brand-icon">CT</div>
-      <div>
-        <div class="brand-title">CyberTrace</div>
-        <div class="brand-subtitle">Kill Chain & Attack Path Analysis</div>
+    <div class="brand-wrap">
+      <div class="brand-logo">CT</div>
+      <div class="brand-text">
+        <h1>CyberTrace</h1>
+        <span>Kill Chain & Attack Path Analysis</span>
       </div>
     </div>
-    <div class="header-actions">
-      <div class="status-pill" id="systemStatusPill">
+    <div class="header-status">
+      <div class="status-badge">
         <span class="status-dot"></span>
-        <span id="systemStatusText">Pipeline Ready</span>
+        <span id="systemStatusText">Pipeline Online</span>
       </div>
     </div>
   </header>
 
-  <div class="app-container">
-
-    <!-- Ingestion & Pipeline Control Bar (FR-1) -->
-    <div class="ingest-bar">
-      <div class="ingest-form">
-        <input type="text" id="logPathInput" class="ingest-input" value="edr_events.json" placeholder="Enter log path (e.g. edr_events.json)">
-        <button class="btn" id="runIngestBtn" onclick="runIngestion()">
-          <span id="ingestSpinner" style="display:none;">⏳</span>
-          <span>Ingest & Correlate</span>
-        </button>
-      </div>
-      <div class="ingest-metrics" id="ingestMetricsBar">
-        <div class="metric-item">Active Dataset: <strong id="metricDataset">edr_events.parquet</strong></div>
-        <div class="metric-item">Incidents: <strong id="metricIncidents">29</strong></div>
-        <div class="metric-item">RAM: <strong id="metricRam">~150 MB</strong></div>
-      </div>
+  <!-- 2. Ingestion Toolbar & Metrics Strip -->
+  <div class="toolbar-strip">
+    <div class="upload-group">
+      <label class="file-select-label" for="logFileInput">
+        📁 Choose Log File
+      </label>
+      <input type="file" id="logFileInput" accept=".json,.ndjson,.log">
+      <span class="selected-filename" id="selectedFileName">Default: edr_events.json</span>
+      <button class="btn btn-primary" id="btnUpload" onclick="handleFileUpload()">
+        Upload & Analyse
+      </button>
     </div>
 
-    <!-- Main Content Layout -->
-    <div class="content-layout">
-
-      <!-- Left Sidebar: Incident Dashboard (FR-4 & FR-7) -->
-      <aside class="sidebar-panel">
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="kpi-val" id="kpiTotalIncidents">0</div>
-            <div class="kpi-label">Incidents</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-val kpi-crit" id="kpiCritical">0</div>
-            <div class="kpi-label">Critical</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-val kpi-high" id="kpiHigh">0</div>
-            <div class="kpi-label">High</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-val kpi-med" id="kpiMedium">0</div>
-            <div class="kpi-label">Medium</div>
-          </div>
-        </div>
-
-        <div class="filter-bar">
-          <input type="text" id="searchInput" class="search-input" placeholder="Search hosts or titles..." oninput="filterIncidents()">
-          <select id="severitySelect" class="select-input" onchange="filterIncidents()">
-            <option value="">All Severities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-        </div>
-
-        <div class="incident-list" id="incidentListContainer">
-          <div class="empty-state">Loading incidents...</div>
-        </div>
-      </aside>
-
-      <!-- Right Panel: Incident Investigation (FR-5 & FR-6) -->
-      <main class="investigation-panel">
-        
-        <!-- Incident Header Detail -->
-        <div class="detail-header" id="detailHeader">
-          <div class="detail-title-group">
-            <h2 id="activeIncidentTitle">Select an incident to investigate</h2>
-            <div class="detail-desc" id="activeIncidentSummary">Review attack path graph, chronological timeline, and evidence-backed reach-next reasoning.</div>
-            <div class="detail-meta-pills" id="activeIncidentPills"></div>
-          </div>
-        </div>
-
-        <!-- Investigation Tabs -->
-        <div class="nav-tabs">
-          <button class="tab-btn active" onclick="switchTab('graphTab')">Attack Graph (NetworkX)</button>
-          <button class="tab-btn" onclick="switchTab('timelineTab')">Chronological Timeline</button>
-          <button class="tab-btn" onclick="switchTab('reachTab')">Reach-Next Reasoning (FR-6)</button>
-        </div>
-
-        <!-- Tab 1: Directed Attack Graph (FR-5) -->
-        <div class="tab-viewport active" id="graphTab">
-          <div class="graph-container">
-            <div class="graph-toolbar">
-              <button class="btn btn-secondary" onclick="resetGraphView()" title="Fit View">Fit</button>
-              <button class="btn btn-secondary" onclick="zoomGraph(1.2)" title="Zoom In">+</button>
-              <button class="btn btn-secondary" onclick="zoomGraph(0.8)" title="Zoom Out">-</button>
-            </div>
-
-            <div class="graph-legend">
-              <div class="legend-item"><div class="legend-circle" style="background:#06b6d4;"></div> Host</div>
-              <div class="legend-item"><div class="legend-circle" style="background:#10b981;"></div> User</div>
-              <div class="legend-item"><div class="legend-circle" style="background:#8b5cf6;"></div> Process</div>
-              <div class="legend-item"><div class="legend-circle" style="background:#f59e0b;"></div> Registry / File</div>
-              <div class="legend-item"><div class="legend-circle" style="background:#ef4444;"></div> Alert</div>
-              <div class="legend-item"><div class="legend-circle" style="background:#3b82f6;"></div> Network Dest</div>
-              <div class="legend-item" style="margin-left:8px;">— Observed Edge</div>
-              <div class="legend-item">- - Inferred Edge</div>
-            </div>
-
-            <div class="graph-inspector" id="graphInspector">
-              <h4 id="inspectorTitle">Node Inspector</h4>
-              <div id="inspectorContent"></div>
-            </div>
-
-            <canvas id="graphCanvas"></canvas>
-          </div>
-        </div>
-
-        <!-- Tab 2: Chronological Timeline (FR-5) -->
-        <div class="tab-viewport" id="timelineTab">
-          <div class="timeline-stream" id="timelineContainer">
-            <div class="empty-state">No timeline events loaded.</div>
-          </div>
-        </div>
-
-        <!-- Tab 3: Reach-Next Reasoning (FR-6) -->
-        <div class="tab-viewport" id="reachTab">
-          <div id="reachExplanation" style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
-            Strict verification logic distinguishes observed network activity from authenticated access and elevated permissions.
-          </div>
-          <div class="reach-grid" id="reachGridContainer">
-            <div class="empty-state">No reach-next targets observed.</div>
-          </div>
-        </div>
-
-      </main>
+    <div class="metrics-group">
+      <div class="metric-item">
+        <span>Incidents:</span>
+        <span class="metric-value" id="metricTotal">0</span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-badge badge-critical" id="metricCrit">0 Critical</span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-badge badge-high" id="metricHigh">0 High</span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-badge badge-medium" id="metricMed">0 Medium</span>
+      </div>
     </div>
   </div>
 
-  <!-- Evidence Inspector Modal (FR-1 & FR-5) -->
-  <div class="modal-backdrop" id="evidenceModal" onclick="closeEvidenceModal(event)">
-    <div class="modal-dialog" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 id="evidenceModalTitle">Raw Evidence Record (Byte-Offset Seek)</h3>
-        <button class="close-btn" onclick="closeEvidenceModal()">&times;</button>
+  <!-- 3. Main Master-Detail Layout -->
+  <div class="app-body">
+    
+    <!-- Left Sidebar: Filterable Incident Catalog -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-search-row">
+          <input type="text" class="search-input" id="searchInput" placeholder="Filter by host, user, or ID..." oninput="filterIncidents()">
+          <select class="filter-select" id="severitySelect" onchange="filterIncidents()">
+            <option value="">All</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+          </select>
+        </div>
+      </div>
+      <div class="incident-list" id="incidentListContainer">
+        <div class="empty-state">Loading incidents...</div>
+      </div>
+    </aside>
+
+    <!-- Right Main Panel: Selected Incident Investigation -->
+    <main class="main-panel">
+      
+      <!-- Incident Detail Header -->
+      <section class="incident-header">
+        <div class="inc-title-row">
+          <div class="inc-title" id="activeIncTitle">Select an incident to investigate</div>
+          <div id="activeIncBadges"></div>
+        </div>
+        <div class="inc-summary" id="activeIncSummary">
+          No incident selected.
+        </div>
+        <div class="chips-row" id="activeIncChips"></div>
+      </section>
+
+      <!-- Viewport Navigation Tabs -->
+      <nav class="tab-strip">
+        <button class="tab-item active" data-tab="graphTab" onclick="switchTab('graphTab')">Attack Graph</button>
+        <button class="tab-item" data-tab="timelineTab" onclick="switchTab('timelineTab')">Chronological Timeline</button>
+        <button class="tab-item" data-tab="reachTab" onclick="switchTab('reachTab')">Reach-Next Intelligence</button>
+      </nav>
+
+      <!-- Tab 1: Structured Hierarchical Attack Graph -->
+      <div class="viewport active" id="graphTab">
+        <div class="graph-stage">
+          <div class="graph-controls">
+            <button class="ctrl-btn" onclick="zoomGraph(1.15)" title="Zoom In">+</button>
+            <button class="ctrl-btn" onclick="zoomGraph(0.85)" title="Zoom Out">−</button>
+            <button class="ctrl-btn" onclick="resetGraphView()" title="Fit to View">⛶</button>
+          </div>
+
+          <div class="graph-legend">
+            <div class="legend-item"><span class="legend-dot" style="background:#0d9488;"></span> Host</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#4f46e5;"></span> User</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#7c3aed;"></span> Process</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#d97706;"></span> Registry</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#e11d48;"></span> File</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#dc2626;"></span> Alert</div>
+            <div class="legend-item"><span class="legend-line" style="background:#2563eb;"></span> Observed</div>
+            <div class="legend-item"><span class="legend-line" style="border-top:2px dashed #94a3b8;"></span> Inferred</div>
+          </div>
+
+          <canvas id="graphCanvas"></canvas>
+        </div>
+
+        <!-- Node / Edge Inspector Drawer -->
+        <aside class="inspector-panel" id="graphInspector">
+          <div class="inspector-header">
+            <span id="inspectorTitle">Inspector</span>
+            <span style="font-size:11px; color:var(--text-subtle);">Click node or edge</span>
+          </div>
+          <div class="inspector-body" id="inspectorBody">
+            <div style="color:var(--text-subtle);">Select an entity in the graph to inspect its telemetry attributes and source evidence.</div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Tab 2: Chronological Timeline Stream -->
+      <div class="viewport" id="timelineTab">
+        <div class="timeline-table-card">
+          <table class="timeline-table">
+            <thead>
+              <tr>
+                <th style="width:50px;">Step</th>
+                <th style="width:170px;">Timestamp</th>
+                <th style="width:160px;">Host & Actor</th>
+                <th style="width:200px;">MITRE Technique</th>
+                <th>Action & Telemetry</th>
+                <th style="width:110px;">Evidence</th>
+              </tr>
+            </thead>
+            <tbody id="timelineTbody">
+              <tr>
+                <td colspan="6" class="empty-state">No timeline events available.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: Reach-Next Intelligence Cards -->
+      <div class="viewport" id="reachTab">
+        <div class="reach-grid" id="reachGrid">
+          <div class="empty-state">No reach-next targets recorded.</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Raw Evidence Modal (Byte Offset Disk Seek) -->
+  <div class="modal-backdrop" id="evidenceModal" onclick="if(event.target===this)closeEvidenceModal()">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="modalEvidTitle">Raw Log Evidence Provenance</h3>
+        <button class="modal-close-btn" onclick="closeEvidenceModal()">✕</button>
       </div>
       <div class="modal-body">
-        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-secondary);">
-          <div>Source File: <strong id="evidRawFile" style="color:#fff;">edr_events.json</strong></div>
-          <div>Byte Offset: <strong id="evidOffset" style="color:#fff;">0</strong> (Length: <strong id="evidLen" style="color:#fff;">0</strong> B)</div>
+        <div class="modal-meta-strip">
+          <div>Source: <strong id="modalEvidFile">edr_events.json</strong></div>
+          <div>Byte Offset: <strong id="modalEvidOffset">0</strong></div>
+          <div>Length: <strong id="modalEvidLength">0 B</strong></div>
         </div>
-        <div class="raw-code-block" id="evidRawJson">Loading raw disk chunk...</div>
+        <pre class="raw-code-box" id="modalEvidCode">Seeking byte offset on disk...</pre>
       </div>
     </div>
   </div>
 
   <script>
+    // -------------------------------------------------------------------------
     // Application State
+    // -------------------------------------------------------------------------
     let incidents = [];
-    let selectedIncident = null;
-    let selectedIncidentPath = null;
+    let activeIncidentId = null;
+    let activeIncidentData = null;
 
-    // Graph Render State
-    let graphData = { nodes: [], edges: [] };
-    let nodePositions = {};
+    // Graph Canvas State
+    let graphNodes = [];
+    let graphEdges = [];
+    let nodeLayout = {};
+    let edgeLayout = [];
     let transform = { x: 0, y: 0, scale: 1 };
     let isDragging = false;
     let dragStart = { x: 0, y: 0 };
     let hoveredNode = null;
-    let selectedElement = null;
+    let selectedNode = null;
+    let selectedEdge = null;
 
     const canvas = document.getElementById("graphCanvas");
     const ctx = canvas.getContext("2d");
 
-    // Initialize application on load
+    // Initialize on page load
     window.addEventListener("DOMContentLoaded", () => {
       setupCanvas();
+      setupFileInput();
       fetchIncidents();
     });
+
+    // -------------------------------------------------------------------------
+    // File Selection & Multipart Upload
+    // -------------------------------------------------------------------------
+    function setupFileInput() {
+      const input = document.getElementById("logFileInput");
+      input.addEventListener("change", () => {
+        if (input.files && input.files.length > 0) {
+          const file = input.files[0];
+          const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+          document.getElementById("selectedFileName").textContent = `${file.name} (${sizeMb} MB)`;
+        }
+      });
+    }
+
+    async function handleFileUpload() {
+      const input = document.getElementById("logFileInput");
+      const btn = document.getElementById("btnUpload");
+      const statusText = document.getElementById("systemStatusText");
+
+      if (!input.files || input.files.length === 0) {
+        // Trigger server ingestion of default file if no local file selected
+        try {
+          btn.disabled = true;
+          statusText.textContent = "Processing Default Dataset...";
+          const res = await fetch("/api/ingest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_path: "edr_events.json" })
+          });
+          if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+          const data = await res.json();
+          statusText.textContent = "Pipeline Online";
+          alert(`Analysis Complete!\nParsed: ${data.ingestion.parsed_ok.toLocaleString()} records\nThroughput: ${Math.round(data.ingestion.throughput_records_per_sec).toLocaleString()} rec/sec\nIncidents: ${data.incidents_count}`);
+          await fetchIncidents();
+        } catch (err) {
+          statusText.textContent = "Ingestion Error";
+          alert(`Analysis Failed: ${err.message}`);
+        } finally {
+          btn.disabled = false;
+        }
+        return;
+      }
+
+      // Real Multipart File Upload
+      const file = input.files[0];
+      const formData = new FormData();
+      formData.append("file", file);
+
+      btn.disabled = true;
+      statusText.textContent = `Uploading ${file.name}...`;
+
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.detail || `Upload failed with status ${res.status}`);
+        }
+
+        const data = await res.json();
+        statusText.textContent = "Pipeline Online";
+        alert(`Upload & Analysis Complete!\n\nFile: ${data.filename}\nFormat: ${data.format}\nParsed: ${data.ingestion.parsed_ok.toLocaleString()} records\nIncidents Correlated: ${data.incidents_count}`);
+        await fetchIncidents();
+      } catch (err) {
+        statusText.textContent = "Upload Failed";
+        alert(`Error: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Incident Data Loading & Metrics
+    // -------------------------------------------------------------------------
+    async function fetchIncidents() {
+      try {
+        const res = await fetch("/api/incidents");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        incidents = await res.json();
+        updateMetrics();
+        renderIncidentList(incidents);
+
+        if (incidents.length > 0) {
+          selectIncident(incidents[0].incident_id);
+        }
+      } catch (err) {
+        console.error("Failed to load incidents:", err);
+        document.getElementById("incidentListContainer").innerHTML = `
+          <div class="empty-state">Failed to load incidents: ${err.message}</div>
+        `;
+      }
+    }
+
+    function updateMetrics() {
+      document.getElementById("metricTotal").textContent = incidents.length;
+      let crit = 0, high = 0, med = 0;
+      incidents.forEach(inc => {
+        const s = (inc.severity || "").toLowerCase();
+        if (s === "critical") crit++;
+        else if (s === "high") high++;
+        else if (s === "medium") med++;
+      });
+      document.getElementById("metricCrit").textContent = `${crit} Critical`;
+      document.getElementById("metricHigh").textContent = `${high} High`;
+      document.getElementById("metricMed").textContent = `${med} Medium`;
+    }
+
+    function renderIncidentList(items) {
+      const container = document.getElementById("incidentListContainer");
+      if (!items || items.length === 0) {
+        container.innerHTML = '<div class="empty-state">No matching incidents.</div>';
+        return;
+      }
+
+      container.innerHTML = items.map(inc => {
+        const activeClass = inc.incident_id === activeIncidentId ? "active" : "";
+        const sevClass = `badge-${(inc.severity || 'low').toLowerCase()}`;
+        const host = (inc.hosts && inc.hosts.length > 0) ? inc.hosts[0] : "Unknown Host";
+        return `
+          <div class="incident-item ${activeClass}" onclick="selectIncident('${inc.incident_id}')">
+            <div class="item-top">
+              <span class="item-id">${inc.incident_id}</span>
+              <span class="metric-badge ${sevClass}">${inc.severity}</span>
+            </div>
+            <div class="item-title">${escapeHtml(inc.title)}</div>
+            <div class="item-meta">
+              <span>🖥️ ${escapeHtml(host)}</span>
+              <span>🚨 ${inc.alert_count} Alerts</span>
+              <span>⏱️ ${inc.timeline_steps} Steps</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function filterIncidents() {
+      const q = document.getElementById("searchInput").value.toLowerCase();
+      const sev = document.getElementById("severitySelect").value.toLowerCase();
+
+      const filtered = incidents.filter(inc => {
+        const matchSev = !sev || (inc.severity || "").toLowerCase() === sev;
+        const matchText = !q ||
+          inc.incident_id.toLowerCase().includes(q) ||
+          inc.title.toLowerCase().includes(q) ||
+          (inc.hosts && inc.hosts.some(h => h.toLowerCase().includes(q))) ||
+          (inc.users && inc.users.some(u => u.toLowerCase().includes(q)));
+        return matchSev && matchText;
+      });
+
+      renderIncidentList(filtered);
+    }
+
+    // -------------------------------------------------------------------------
+    // Incident Details & Path Retrieval (/incidents/{id}/path)
+    // -------------------------------------------------------------------------
+    async function selectIncident(id) {
+      activeIncidentId = id;
+      
+      // Update sidebar highlight
+      document.querySelectorAll(".incident-item").forEach(el => {
+        el.classList.toggle("active", el.querySelector(".item-id")?.textContent === id);
+      });
+
+      try {
+        const res = await fetch(`/incidents/${id}/path`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        activeIncidentData = await res.json();
+        renderActiveIncident(activeIncidentData);
+      } catch (err) {
+        console.error("Failed to load incident path:", err);
+      }
+    }
+
+    function renderActiveIncident(inc) {
+      document.getElementById("activeIncTitle").textContent = `${inc.incident_id}: ${inc.title}`;
+      
+      const sevClass = `badge-${(inc.severity || 'low').toLowerCase()}`;
+      document.getElementById("activeIncBadges").innerHTML = `
+        <span class="metric-badge ${sevClass}">${inc.severity}</span>
+        <span class="chip">Confidence: <strong>${inc.confidence}</strong></span>
+      `;
+
+      document.getElementById("activeIncSummary").textContent = inc.summary || "No summary recorded.";
+
+      const chipsContainer = document.getElementById("activeIncChips");
+      chipsContainer.innerHTML = `
+        <span class="chip">🖥️ Host: <strong>${(inc.hosts || []).join(", ") || "N/A"}</strong></span>
+        <span class="chip">👤 Users: <strong>${(inc.users || []).join(", ") || "N/A"}</strong></span>
+        <span class="chip">📅 Time: <strong>${inc.first_seen} → ${inc.last_seen}</strong></span>
+      `;
+
+      // 1. Layout & Render Graph
+      graphNodes = (inc.graph && inc.graph.nodes) ? inc.graph.nodes : [];
+      graphEdges = (inc.graph && inc.graph.edges) ? inc.graph.edges : [];
+      layoutHierarchicalGraph(graphNodes, graphEdges);
+      drawGraph();
+
+      // 2. Render Timeline
+      renderTimeline(inc.timeline || []);
+
+      // 3. Render Reach Next
+      renderReachNext(inc.reach_next || []);
+    }
+
+    // -------------------------------------------------------------------------
+    // Structured Layered Attack Graph Layout & Rendering
+    // -------------------------------------------------------------------------
+    let expandedProcessGroups = new Set();
+
+    function layoutHierarchicalGraph(nodes, edges) {
+      nodeLayout = {};
+      edgeLayout = [];
+
+      if (!nodes || nodes.length === 0) return;
+
+      // Step 1: Detect repeated process instances and group them for visual clarity
+      // Process instances with distinct PIDs remain separate in raw telemetry and can be expanded.
+      const processNameCounts = {};
+      const processInstances = {};
+
+      nodes.forEach(n => {
+        if (n.node_type === "process") {
+          const pName = (n.properties && n.properties.process_name) || (n.label || "").split(" ")[0] || "process.exe";
+          processNameCounts[pName] = (processNameCounts[pName] || 0) + 1;
+          if (!processInstances[pName]) processInstances[pName] = [];
+          processInstances[pName].push(n);
+        }
+      });
+
+      // Prepare active visual nodes and ID mapping
+      const visualNodes = [];
+      const idMap = {}; // raw_node_id -> visual_node_id
+
+      nodes.forEach(n => {
+        if (n.node_type === "process") {
+          const pName = (n.properties && n.properties.process_name) || (n.label || "").split(" ")[0] || "process.exe";
+          const count = processNameCounts[pName] || 1;
+
+          if (count > 1 && !expandedProcessGroups.has(pName)) {
+            // Group collapsed: only add the group node once
+            const groupId = `group:process:${pName}`;
+            idMap[n.id] = groupId;
+
+            if (!visualNodes.some(vn => vn.id === groupId)) {
+              visualNodes.push({
+                id: groupId,
+                node_type: "process_group",
+                label: `${pName} (${count} instances)`,
+                process_name: pName,
+                count: count,
+                instances: processInstances[pName],
+                is_grouped: true,
+                properties: {
+                  process_name: pName,
+                  instance_count: count,
+                  pids: processInstances[pName].map(i => i.properties?.process_id || "N/A").join(", ")
+                }
+              });
+            }
+          } else {
+            // Expanded or single instance
+            idMap[n.id] = n.id;
+            const pid = n.properties?.process_id ? ` [PID: ${n.properties.process_id}]` : "";
+            visualNodes.push({
+              ...n,
+              label: `${pName}${pid}`,
+              process_name: pName,
+              is_grouped: false,
+              can_collapse: count > 1
+            });
+          }
+        } else {
+          idMap[n.id] = n.id;
+          visualNodes.push(n);
+        }
+      });
+
+      // Remap edges and deduplicate multi-fanout links
+      const seenEdges = new Set();
+      (edges || []).forEach(e => {
+        const src = idMap[e.source] || e.source;
+        const tgt = idMap[e.target] || e.target;
+        if (src === tgt) return; // avoid self loops
+
+        const edgeKey = `${src}->${tgt}:${e.relationship_type}:${e.is_inferred}`;
+        if (!seenEdges.has(edgeKey)) {
+          seenEdges.add(edgeKey);
+          edgeLayout.push({
+            ...e,
+            source: src,
+            target: tgt,
+          });
+        }
+      });
+
+      // Step 2: Organize visual nodes into 6 aligned, logical progression layers
+      // Layer 0: Origin (Host & User)
+      // Layer 1: Parent Execution (e.g. winword.exe / Office)
+      // Layer 2: Secondary / Script Execution (e.g. powershell.exe)
+      // Layer 3: Persistence / Network Destinations (Windows Run Key / Outbound IPs)
+      // Layer 4: Impact Binary / Files (unknown.exe / *.locked files)
+      // Layer 5: ATT&CK Detections (Alerts)
+      const layers = [[], [], [], [], [], []];
+
+      visualNodes.forEach(n => {
+        let col = 1;
+        if (n.node_type === "host" || n.node_type === "user") {
+          col = 0;
+        } else if (n.node_type === "process" || n.node_type === "process_group") {
+          const name = (n.process_name || n.label || "").toLowerCase();
+          if (name.includes("winword") || name.includes("office") || name.includes("explorer")) {
+            col = 1;
+          } else if (name.includes("powershell") || name.includes("cmd") || name.includes("wscript")) {
+            col = 2;
+          } else if (name.includes("unknown") || name.includes("ransom") || name.includes("crypt")) {
+            col = 4;
+          } else {
+            col = 2;
+          }
+        } else if (n.node_type === "registry" || n.node_type === "network_dest") {
+          col = 3;
+        } else if (n.node_type === "file") {
+          col = 4;
+        } else if (n.node_type === "alert") {
+          col = 5;
+        }
+        layers[col].push(n);
+      });
+
+      const w = canvas.width || 900;
+      const h = canvas.height || 520;
+      const activeColCount = 6;
+      const colWidth = (w - 180) / (activeColCount - 1);
+
+      layers.forEach((colNodes, colIdx) => {
+        if (!colNodes || colNodes.length === 0) return;
+        const x = 90 + colIdx * colWidth;
+        const rowHeight = h / (colNodes.length + 1);
+
+        colNodes.forEach((node, rowIdx) => {
+          const y = (rowIdx + 1) * rowHeight;
+          nodeLayout[node.id] = {
+            node: node,
+            x: x,
+            y: y,
+            w: 136,
+            h: 38,
+            color: getNodeColor(node.node_type),
+          };
+        });
+      });
+
+      transform = { x: 0, y: 0, scale: 1 };
+    }
+
+    function toggleProcessGroup(processName) {
+      if (expandedProcessGroups.has(processName)) {
+        expandedProcessGroups.delete(processName);
+      } else {
+        expandedProcessGroups.add(processName);
+      }
+      layoutHierarchicalGraph(graphNodes, graphEdges);
+      drawGraph();
+
+      // Refresh inspector if a group node was selected
+      if (selectedNode) {
+        inspectNode(selectedNode);
+      }
+    }
+
+    function getNodeColor(type) {
+      switch (type) {
+        case "host": return "#0d9488"; // Teal
+        case "user": return "#4f46e5"; // Indigo
+        case "process": return "#7c3aed"; // Purple
+        case "process_group": return "#7c3aed"; // Purple
+        case "registry": return "#d97706"; // Amber
+        case "file": return "#e11d48"; // Rose
+        case "alert": return "#dc2626"; // Red
+        case "network_dest": return "#2563eb"; // Blue
+        default: return "#64748b";
+      }
+    }
 
     function setupCanvas() {
       function resize() {
@@ -970,12 +1468,25 @@
       resize();
 
       canvas.addEventListener("mousedown", (e) => {
-        const mousePos = getCanvasMousePos(e);
-        const clickedNode = findNodeAt(mousePos.x, mousePos.y);
+        const pos = getCanvasMousePos(e);
+        const clickedNode = findNodeAt(pos.x, pos.y);
         if (clickedNode) {
           inspectNode(clickedNode);
+          selectedNode = clickedNode;
+          selectedEdge = null;
+          drawGraph();
           return;
         }
+
+        const clickedEdge = findEdgeAt(pos.x, pos.y);
+        if (clickedEdge) {
+          inspectEdge(clickedEdge);
+          selectedEdge = clickedEdge;
+          selectedNode = null;
+          drawGraph();
+          return;
+        }
+
         isDragging = true;
         dragStart = { x: e.clientX - transform.x, y: e.clientY - transform.y };
       });
@@ -986,8 +1497,8 @@
           transform.y = e.clientY - dragStart.y;
           drawGraph();
         } else {
-          const mousePos = getCanvasMousePos(e);
-          const node = findNodeAt(mousePos.x, mousePos.y);
+          const pos = getCanvasMousePos(e);
+          const node = findNodeAt(pos.x, pos.y);
           if (node !== hoveredNode) {
             hoveredNode = node;
             drawGraph();
@@ -1008,232 +1519,54 @@
 
     function getCanvasMousePos(e) {
       const rect = canvas.getBoundingClientRect();
-      const clientX = e.clientX - rect.left;
-      const clientY = e.clientY - rect.top;
       return {
-        x: (clientX - transform.x) / transform.scale,
-        y: (clientY - transform.y) / transform.scale
+        x: (e.clientX - rect.left - transform.x) / transform.scale,
+        y: (e.clientY - rect.top - transform.y) / transform.scale
       };
     }
 
     function findNodeAt(x, y) {
-      for (const node of graphData.nodes) {
-        const pos = nodePositions[node.id];
-        if (!pos) continue;
-        const dx = x - pos.x;
-        const dy = y - pos.y;
-        if (Math.sqrt(dx * dx + dy * dy) <= (pos.radius || 18)) {
-          return node;
+      for (const id in nodeLayout) {
+        const nl = nodeLayout[id];
+        const halfW = nl.w / 2;
+        const halfH = nl.h / 2;
+        if (x >= nl.x - halfW && x <= nl.x + halfW && y >= nl.y - halfH && y <= nl.y + halfH) {
+          return nl.node;
         }
       }
       return null;
     }
 
-    // Fetch Incidents from REST API (FR-7)
-    async function fetchIncidents() {
-      try {
-        const res = await fetch("/api/incidents");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        incidents = await res.json();
-        updateKPIs();
-        renderIncidentList(incidents);
+    function findEdgeAt(x, y) {
+      for (const edge of edgeLayout) {
+        const p1 = nodeLayout[edge.source];
+        const p2 = nodeLayout[edge.target];
+        if (!p1 || !p2) continue;
 
-        if (incidents.length > 0 && !selectedIncident) {
-          selectIncident(incidents[0].incident_id);
+        const dist = distToSegment({ x, y }, p1, p2);
+        if (dist <= 6) {
+          return edge;
         }
-      } catch (err) {
-        console.error("Failed to load incidents:", err);
-        document.getElementById("incidentListContainer").innerHTML = `
-          <div class="empty-state">
-            <div>⚠️ Failed to load incidents</div>
-            <div style="font-size:11px; margin-top:4px;">${err.message}</div>
-          </div>
-        `;
       }
+      return null;
     }
 
-    function updateKPIs() {
-      document.getElementById("kpiTotalIncidents").textContent = incidents.length;
-      document.getElementById("metricIncidents").textContent = incidents.length;
-
-      let crit = 0, high = 0, med = 0;
-      incidents.forEach(inc => {
-        const s = inc.severity.toLowerCase();
-        if (s === "critical") crit++;
-        else if (s === "high") high++;
-        else if (s === "medium") med++;
-      });
-
-      document.getElementById("kpiCritical").textContent = crit;
-      document.getElementById("kpiHigh").textContent = high;
-      document.getElementById("kpiMedium").textContent = med;
+    function distToSegment(p, v, w) {
+      const l2 = (v.x - w.x) * (v.x - w.x) + (v.y - w.y) * (v.y - w.y);
+      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
     }
 
-    function renderIncidentList(items) {
-      const container = document.getElementById("incidentListContainer");
-      if (!items || items.length === 0) {
-        container.innerHTML = '<div class="empty-state">No incidents match current filter.</div>';
-        return;
-      }
-
-      container.innerHTML = items.map(inc => {
-        const activeClass = selectedIncident && selectedIncident.incident_id === inc.incident_id ? "active" : "";
-        const hostStr = (inc.hosts || []).join(", ") || "Unknown Host";
-        return `
-          <div class="incident-card ${activeClass}" onclick="selectIncident('${inc.incident_id}')">
-            <div class="card-header">
-              <span class="inc-id">${inc.incident_id}</span>
-              <span class="badge badge-${inc.severity.toLowerCase()}">${inc.severity}</span>
-            </div>
-            <div class="card-title">${escapeHtml(inc.title)}</div>
-            <div class="card-meta">
-              <span class="meta-tag">🖥️ ${escapeHtml(hostStr)}</span>
-              <span class="meta-tag">🚨 ${inc.alert_count} Alerts</span>
-              <span class="meta-tag">⏱️ ${inc.timeline_steps} Steps</span>
-              ${inc.reach_next_count > 0 ? `<span class="meta-tag" style="color:var(--accent-amber);">🌐 ${inc.reach_next_count} Reach-Next</span>` : ''}
-            </div>
-          </div>
-        `;
-      }).join("");
-    }
-
-    function filterIncidents() {
-      const query = document.getElementById("searchInput").value.toLowerCase();
-      const sev = document.getElementById("severitySelect").value.toLowerCase();
-
-      const filtered = incidents.filter(inc => {
-        const matchSev = !sev || inc.severity.toLowerCase() === sev;
-        const matchText = !query ||
-          inc.title.toLowerCase().includes(query) ||
-          inc.incident_id.toLowerCase().includes(query) ||
-          (inc.hosts && inc.hosts.some(h => h.toLowerCase().includes(query))) ||
-          (inc.users && inc.users.some(u => u.toLowerCase().includes(query)));
-        return matchSev && matchText;
-      });
-
-      renderIncidentList(filtered);
-    }
-
-    // Select Incident & Load Full Path (/incidents/{id}/path)
-    async function selectIncident(incidentId) {
-      try {
-        const res = await fetch(`/incidents/${incidentId}/path`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        selectedIncidentPath = await res.json();
-        selectedIncident = selectedIncidentPath;
-
-        // Update list active highlight
-        document.querySelectorAll(".incident-card").forEach(el => {
-          el.classList.remove("active");
-        });
-        const currentCard = Array.from(document.querySelectorAll(".incident-card"))
-          .find(el => el.querySelector(".inc-id")?.textContent === incidentId);
-        if (currentCard) currentCard.classList.add("active");
-
-        renderIncidentDetail();
-      } catch (err) {
-        console.error("Failed to load incident path:", err);
-      }
-    }
-
-    function renderIncidentDetail() {
-      if (!selectedIncident) return;
-      const inc = selectedIncident;
-
-      document.getElementById("activeIncidentTitle").innerHTML = `
-        ${escapeHtml(inc.title)}
-        <span class="badge badge-${inc.severity.toLowerCase()}">${inc.severity}</span>
-        <span class="badge badge-low">Conf: ${inc.confidence}</span>
-      `;
-
-      document.getElementById("activeIncidentSummary").textContent = inc.summary || "No summary available.";
-
-      const pills = document.getElementById("activeIncidentPills");
-      pills.innerHTML = `
-        <span class="pill">🆔 ${inc.incident_id}</span>
-        <span class="pill">🖥️ Hosts: ${(inc.hosts || []).join(", ") || "None"}</span>
-        <span class="pill">👤 Users: ${(inc.users || []).join(", ") || "None"}</span>
-        <span class="pill">📅 ${inc.first_seen} → ${inc.last_seen}</span>
-      `;
-
-      // Render Graph
-      graphData = inc.graph || { nodes: [], edges: [] };
-      layoutGraph(graphData);
-      drawGraph();
-
-      // Render Timeline
-      renderTimeline(inc.timeline || []);
-
-      // Render Reach Next
-      renderReachNext(inc.reach_next || []);
-    }
-
-    // Layout Directed Graph (DAG Levels)
-    function layoutGraph(data) {
-      nodePositions = {};
-      if (!data.nodes || data.nodes.length === 0) return;
-
-      const width = canvas.width || 800;
-      const height = canvas.height || 500;
-
-      // Group by node type into visual columns
-      const typeCols = {
-        "network_dest": 0,
-        "process": 1,
-        "registry": 2,
-        "file": 2,
-        "alert": 3,
-        "host": 4,
-        "user": 1
-      };
-
-      const columns = [[], [], [], [], []];
-      data.nodes.forEach(n => {
-        const colIdx = typeCols[n.node_type] !== undefined ? typeCols[n.node_type] : 2;
-        columns[colIdx].push(n);
-      });
-
-      const colWidth = (width - 160) / 4;
-      columns.forEach((colNodes, colIdx) => {
-        const x = 80 + colIdx * colWidth;
-        const rowHeight = height / (colNodes.length + 1);
-        colNodes.forEach((node, rowIdx) => {
-          const y = (rowIdx + 1) * rowHeight;
-          nodePositions[node.id] = {
-            x: x,
-            y: y,
-            radius: node.node_type === "alert" ? 22 : 18,
-            color: getNodeColor(node.node_type)
-          };
-        });
-      });
-
-      // Center initial transform
-      transform = { x: 0, y: 0, scale: 1 };
-    }
-
-    function getNodeColor(type) {
-      switch (type) {
-        case "host": return "#06b6d4";
-        case "user": return "#10b981";
-        case "process": return "#8b5cf6";
-        case "registry": return "#f59e0b";
-        case "file": return "#f97316";
-        case "alert": return "#ef4444";
-        case "network_dest": return "#3b82f6";
-        default: return "#94a3b8";
-      }
-    }
-
-    // Render Canvas Graph
     function drawGraph() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (!graphData.nodes || graphData.nodes.length === 0) {
-        ctx.fillStyle = "#64748b";
-        ctx.font = "14px " + getComputedStyle(document.body).fontFamily;
+      if (Object.keys(nodeLayout).length === 0) {
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "13px -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("No graph nodes in this incident", canvas.width / 2, canvas.height / 2);
+        ctx.fillText("No attack graph entities for this incident.", canvas.width / 2, canvas.height / 2);
         return;
       }
 
@@ -1242,102 +1575,246 @@
       ctx.scale(transform.scale, transform.scale);
 
       // Draw Edges
-      (graphData.edges || []).forEach(edge => {
-        const p1 = nodePositions[edge.source];
-        const p2 = nodePositions[edge.target];
+      edgeLayout.forEach(edge => {
+        const p1 = nodeLayout[edge.source];
+        const p2 = nodeLayout[edge.target];
         if (!p1 || !p2) return;
+
+        const isSelected = selectedEdge === edge;
 
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
 
         if (edge.is_inferred) {
-          ctx.setLineDash([5, 5]);
-          ctx.strokeStyle = "rgba(148, 163, 184, 0.4)";
-          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = isSelected ? "#0f172a" : "#94a3b8";
+          ctx.lineWidth = isSelected ? 2 : 1.5;
         } else {
           ctx.setLineDash([]);
-          ctx.strokeStyle = "rgba(59, 130, 246, 0.7)";
-          ctx.lineWidth = 2;
+          ctx.strokeStyle = isSelected ? "#1d4ed8" : "#2563eb";
+          ctx.lineWidth = isSelected ? 2 : 1.5;
         }
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Draw arrow
+        // Directed Arrowhead
         const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-        const arrowDist = (p2.radius || 18) + 4;
+        const arrowDist = (p2.w / 2) + 2;
         const ax = p2.x - Math.cos(angle) * arrowDist;
         const ay = p2.y - Math.sin(angle) * arrowDist;
 
-        ctx.fillStyle = edge.is_inferred ? "#94a3b8" : "#3b82f6";
+        ctx.fillStyle = edge.is_inferred ? (isSelected ? "#0f172a" : "#94a3b8") : (isSelected ? "#1d4ed8" : "#2563eb");
         ctx.beginPath();
         ctx.moveTo(ax, ay);
-        ctx.lineTo(ax - 8 * Math.cos(angle - Math.PI / 6), ay - 8 * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(ax - 8 * Math.cos(angle + Math.PI / 6), ay - 8 * Math.sin(angle + Math.PI / 6));
+        ctx.lineTo(ax - 7 * Math.cos(angle - Math.PI / 6), ay - 7 * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(ax - 7 * Math.cos(angle + Math.PI / 6), ay - 7 * Math.sin(angle + Math.PI / 6));
         ctx.closePath();
         ctx.fill();
 
-        // Edge label
+        // Edge Type Label Badge
         if (edge.relationship_type) {
-          const midX = (p1.x + p2.x) / 2;
-          const midY = (p1.y + p2.y) / 2 - 4;
-          ctx.font = "9px monospace";
-          ctx.fillStyle = edge.is_inferred ? "#64748b" : "#93c5fd";
+          const mx = (p1.x + p2.x) / 2;
+          const my = (p1.y + p2.y) / 2 - 4;
+          ctx.font = "9px ui-monospace, monospace";
           ctx.textAlign = "center";
-          ctx.fillText(edge.relationship_type, midX, midY);
+          
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(mx - 32, my - 7, 64, 12);
+          ctx.strokeStyle = "#cbd5e1";
+          ctx.lineWidth = 0.5;
+          ctx.strokeRect(mx - 32, my - 7, 64, 12);
+
+          ctx.fillStyle = edge.is_inferred ? "#64748b" : "#1e40af";
+          let relText = edge.relationship_type;
+          if (relText.length > 13) relText = relText.substring(0, 11) + "…";
+          ctx.fillText(relText, mx, my + 2);
         }
       });
 
-      // Draw Nodes
-      graphData.nodes.forEach(node => {
-        const pos = nodePositions[node.id];
-        if (!pos) return;
+      // Draw Nodes as Clean Structured Light Cards
+      for (const id in nodeLayout) {
+        const nl = nodeLayout[id];
+        const node = nl.node;
 
         const isHovered = hoveredNode && hoveredNode.id === node.id;
-        const r = pos.radius || 18;
+        const isSelected = selectedNode && selectedNode.id === node.id;
 
+        const x = nl.x - nl.w / 2;
+        const y = nl.y - nl.h / 2;
+
+        // Card Body
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = pos.color;
-        ctx.shadowColor = pos.color;
-        ctx.shadowBlur = isHovered ? 15 : 6;
+        roundRect(ctx, x, y, nl.w, nl.h, 5);
+        ctx.fillStyle = "#ffffff";
         ctx.fill();
-        ctx.shadowBlur = 0;
 
-        ctx.strokeStyle = isHovered ? "#fff" : "rgba(255, 255, 255, 0.3)";
-        ctx.lineWidth = isHovered ? 2.5 : 1.5;
+        ctx.strokeStyle = isSelected ? "#2563eb" : (isHovered ? "#94a3b8" : "#cbd5e1");
+        ctx.lineWidth = isSelected ? 2 : 1;
         ctx.stroke();
 
+        // Type Accent Pill on Left
+        ctx.beginPath();
+        roundRect(ctx, x, y, 4, nl.h, 2);
+        ctx.fillStyle = nl.color;
+        ctx.fill();
+
         // Node Label
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "11px " + getComputedStyle(document.body).fontFamily;
-        ctx.textAlign = "center";
-        ctx.fillText(node.label || node.id, pos.x, pos.y + r + 14);
-      });
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.textAlign = "left";
+        
+        let label = node.label || node.id;
+        if (label.length > 17) {
+          label = label.substring(0, 15) + "…";
+        }
+        ctx.fillText(label, x + 10, y + 17);
+
+        // Subtitle (Type & Instance Tag)
+        ctx.fillStyle = "#64748b";
+        ctx.font = "9px -apple-system, sans-serif";
+        const subtitle = node.node_type === "process_group" ? "PROCESS GROUP" : node.node_type.toUpperCase();
+        ctx.fillText(subtitle, x + 10, y + 29);
+
+        // Group Stack Expand/Collapse Indicator
+        if (node.node_type === "process_group") {
+          ctx.fillStyle = "#eff6ff";
+          ctx.fillRect(x + nl.w - 36, y + 8, 30, 20);
+          ctx.strokeStyle = "#bfdbfe";
+          ctx.strokeRect(x + nl.w - 36, y + 8, 30, 20);
+          ctx.fillStyle = "#1d4ed8";
+          ctx.font = "9px ui-monospace, monospace";
+          ctx.fillText(`+${node.count}`, x + nl.w - 30, y + 22);
+        } else if (node.can_collapse) {
+          ctx.fillStyle = "#f1f5f9";
+          ctx.fillRect(x + nl.w - 24, y + 8, 18, 20);
+          ctx.strokeStyle = "#cbd5e1";
+          ctx.strokeRect(x + nl.w - 24, y + 8, 18, 20);
+          ctx.fillStyle = "#475569";
+          ctx.font = "9px ui-monospace, monospace";
+          ctx.fillText("−", x + nl.w - 18, y + 22);
+        }
+      }
 
       ctx.restore();
     }
 
-    function inspectNode(node) {
-      const inspector = document.getElementById("graphInspector");
-      const title = document.getElementById("inspectorTitle");
-      const content = document.getElementById("inspectorContent");
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
 
-      title.textContent = `${node.node_type.toUpperCase()}: ${node.label}`;
-      let propHtml = `
-        <div style="margin-bottom:6px;"><strong>ID:</strong> <span style="font-family:monospace;">${escapeHtml(node.id)}</span></div>
-        <div style="margin-bottom:6px;"><strong>Type:</strong> ${node.node_type}</div>
+    function inspectNode(node) {
+      document.getElementById("inspectorTitle").textContent = `Node: ${node.node_type}`;
+      const body = document.getElementById("inspectorBody");
+
+      let html = `
+        <div class="prop-row">
+          <div class="prop-key">Label</div>
+          <div class="prop-val">${escapeHtml(node.label || node.id)}</div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-key">Identifier</div>
+          <div class="prop-val">${escapeHtml(node.id)}</div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-key">Entity Type</div>
+          <div class="prop-val">${escapeHtml(node.node_type)}</div>
+        </div>
       `;
 
+      if (node.node_type === "process_group") {
+        html += `
+          <div style="margin-top:10px; margin-bottom:10px;">
+            <button class="btn btn-primary" style="width:100%; font-size:11px;" onclick="toggleProcessGroup('${node.process_name}')">
+              Expand All ${node.count} PIDs
+            </button>
+          </div>
+          <div style="font-weight:600; margin-top:12px; margin-bottom:6px; font-size:11px;">Grouped Process Instances</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">
+            Telemetry reports ${node.count} distinct instances with individual PIDs:
+          </div>
+          <div class="prop-val" style="margin-bottom:8px;">
+            ${(node.instances || []).map(i => `PID: ${i.properties?.process_id || 'N/A'}`).join(', ')}
+          </div>
+        `;
+      } else if (node.can_collapse) {
+        html += `
+          <div style="margin-top:10px; margin-bottom:10px;">
+            <button class="btn btn-outline" style="width:100%; font-size:11px;" onclick="toggleProcessGroup('${node.process_name}')">
+              Collapse Group
+            </button>
+          </div>
+        `;
+      }
+
       if (node.properties) {
-        propHtml += `<div style="margin-top:8px; border-top:1px solid #334155; padding-top:6px;"><strong>Properties:</strong></div>`;
+        html += `<div style="font-weight:600; margin-top:12px; margin-bottom:6px; font-size:11px;">Telemetry Properties</div>`;
         for (const [k, v] of Object.entries(node.properties)) {
-          propHtml += `<div style="font-size:11px; margin-top:3px;"><span style="color:#94a3b8;">${k}:</span> <strong style="color:#fff;">${escapeHtml(String(v))}</strong></div>`;
+          html += `
+            <div class="prop-row">
+              <div class="prop-key">${escapeHtml(k)}</div>
+              <div class="prop-val">${escapeHtml(String(v))}</div>
+            </div>
+          `;
         }
       }
 
-      content.innerHTML = propHtml;
-      inspector.style.display = "block";
+      body.innerHTML = html;
+    }
+
+    function inspectEdge(edge) {
+      document.getElementById("inspectorTitle").textContent = `Relationship: ${edge.relationship_type}`;
+      const body = document.getElementById("inspectorBody");
+
+      let html = `
+        <div class="prop-row">
+          <div class="prop-key">Relationship Type</div>
+          <div class="prop-val">${escapeHtml(edge.relationship_type)}</div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-key">Classification</div>
+          <div class="prop-val">${edge.is_inferred ? "Inferred Progression (Temporal)" : "Confirmed Observed Action"}</div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-key">Source Entity</div>
+          <div class="prop-val">${escapeHtml(edge.source)}</div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-key">Target Entity</div>
+          <div class="prop-val">${escapeHtml(edge.target)}</div>
+        </div>
+      `;
+
+      if (edge.evidence_references && edge.evidence_references.length > 0) {
+        html += `<div style="font-weight:600; margin-top:12px; margin-bottom:6px; font-size:11px;">Supporting Evidence</div>`;
+        edge.evidence_references.forEach(ev => {
+          html += `
+            <div style="margin-bottom:6px;">
+              <button class="btn btn-outline" style="width:100%; font-size:11px;" onclick="openEvidenceModal('${ev.event_id}')">
+                🔍 Seek Offset: ${ev.byte_offset}
+              </button>
+            </div>
+          `;
+        });
+      }
+
+      body.innerHTML = html;
+    }
+
+    function zoomGraph(factor) {
+      transform.scale *= factor;
+      transform.scale = Math.max(0.4, Math.min(2.5, transform.scale));
+      drawGraph();
     }
 
     function resetGraphView() {
@@ -1345,52 +1822,58 @@
       drawGraph();
     }
 
-    function zoomGraph(factor) {
-      transform.scale *= factor;
-      transform.scale = Math.max(0.3, Math.min(3.0, transform.scale));
-      drawGraph();
-    }
-
-    // Render Timeline Stream (FR-5)
+    // -------------------------------------------------------------------------
+    // Chronological Timeline Rendering
+    // -------------------------------------------------------------------------
     function renderTimeline(events) {
-      const container = document.getElementById("timelineContainer");
+      const tbody = document.getElementById("timelineTbody");
       if (!events || events.length === 0) {
-        container.innerHTML = '<div class="empty-state">No timeline events recorded.</div>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No timeline events recorded.</td></tr>';
         return;
       }
 
-      container.innerHTML = events.map((ev, idx) => {
-        const actor = ev.process_name ? `${ev.process_name} (PID: ${ev.process_id || 'N/A'})` : (ev.user || ev.host);
+      tbody.innerHTML = events.map((ev, idx) => {
+        const actor = ev.process_name ? `${ev.process_name} (PID: ${ev.process_id || 'N/A'})` : (ev.user || 'Unknown');
+        const cmd = ev.process_command_line ? `<div class="t-cmd-line">${escapeHtml(ev.process_command_line)}</div>` : '';
+        const mitre = ev.mitre_technique_id ? `<span class="metric-badge badge-high">${ev.mitre_technique_id}</span> <span style="font-size:11px; color:var(--text-muted);">${escapeHtml(ev.mitre_technique_name || '')}</span>` : '—';
+        
         return `
-          <div class="timeline-node">
-            <div class="timeline-dot"></div>
-            <div class="t-header">
-              <span class="t-title">Step ${idx + 1}: ${escapeHtml(ev.action)}</span>
-              <span class="t-time">${ev.timestamp}</span>
-            </div>
-            <div class="t-body">
-              <div>🖥️ <strong>${escapeHtml(ev.host)}</strong> | 👤 <strong>${escapeHtml(actor)}</strong></div>
-              ${ev.mitre_technique_id ? `<div style="margin-top:4px;"><span class="badge badge-high">${ev.mitre_technique_id}: ${ev.mitre_technique_name}</span> <span class="pill" style="font-size:10px;">${ev.kill_chain_stage}</span></div>` : ''}
-              ${ev.process_command_line ? `<div style="margin-top:4px; font-family:monospace; font-size:11px; background:#0f172a; padding:4px 6px; border-radius:4px; color:#cbd5e1;">${escapeHtml(ev.process_command_line)}</div>` : ''}
-            </div>
-            <div>
-              <button class="t-evidence-btn" onclick="openEvidenceModal('${ev.event_id}')">
-                🔍 Inspect Raw Evidence (Offset: ${ev.byte_offset})
-              </button>
-            </div>
-          </div>
+          <tr>
+            <td class="t-step-idx">#${idx + 1}</td>
+            <td class="t-time-val">${ev.timestamp}</td>
+            <td>
+              <div style="font-weight:600;">${escapeHtml(ev.host)}</div>
+              <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(actor)}</div>
+            </td>
+            <td>
+              <div>${mitre}</div>
+              <div style="font-size:10px; color:var(--text-subtle); margin-top:2px;">${escapeHtml(ev.kill_chain_stage || '')}</div>
+            </td>
+            <td>
+              <div style="font-weight:500;">${escapeHtml(ev.action)}</div>
+              ${cmd}
+            </td>
+            <td>
+              ${ev.event_id ? `
+                <button class="btn btn-outline" style="font-size:11px; padding:3px 8px;" onclick="openEvidenceModal('${ev.event_id}')">
+                  🔍 Evidence
+                </button>
+              ` : '—'}
+            </td>
+          </tr>
         `;
       }).join("");
     }
 
-    // Render Reach-Next Reasoning (FR-6)
+    // -------------------------------------------------------------------------
+    // Reach-Next Intelligence
+    // -------------------------------------------------------------------------
     function renderReachNext(targets) {
-      const container = document.getElementById("reachGridContainer");
+      const container = document.getElementById("reachGrid");
       if (!targets || targets.length === 0) {
         container.innerHTML = `
           <div class="empty-state" style="grid-column: 1 / -1;">
-            <div>🛡️ No Reachable Assets / Downstream Targets Observed</div>
-            <div style="font-size:12px; margin-top:6px;">No lateral network connections or authenticated targets were observed from this endpoint.</div>
+            🛡️ No Reachable Assets / Downstream Lateral Targets Observed.
           </div>
         `;
         return;
@@ -1398,30 +1881,40 @@
 
       container.innerHTML = targets.map(t => {
         const isOutbound = t.verification_status === "observed_outbound_activity";
-        const pillClass = isOutbound ? "reach-status-outbound" : "reach-status-internal";
-        const statusLabel = isOutbound ? "Observed Outbound Telemetry (Access Unproven)" : "Potential Internal Connectivity";
+        const pillClass = isOutbound ? "pill-outbound" : "pill-internal";
+        const pillLabel = isOutbound ? "Observed Outbound Telemetry (Access Unproven)" : "Potential Internal Connectivity";
 
         return `
           <div class="reach-card">
-            <div class="reach-status-pill ${pillClass}">${statusLabel}</div>
-            <div class="reach-target">${escapeHtml(t.target)}</div>
-            <div style="font-size:11px; color:var(--text-muted);">From Host: <strong>${escapeHtml(t.from_host)}</strong> | Type: ${t.target_type}</div>
-            <div class="reach-reasoning">${escapeHtml(t.reasoning)}</div>
-            ${t.evidence_references && t.evidence_references.length > 0 && t.evidence_references[0].event_id ? `
-              <button class="t-evidence-btn" style="margin-top:6px;" onclick="openEvidenceModal('${t.evidence_references[0].event_id}')">
-                🔍 Verify Provenance (Offset: ${t.evidence_references[0].byte_offset})
-              </button>
+            <div class="reach-header">
+              <span class="reach-target-title">${escapeHtml(t.target)}</span>
+              <span class="reach-pill ${pillClass}">${pillLabel}</span>
+            </div>
+            <div style="font-size:11px; color:var(--text-subtle);">
+              From: <strong>${escapeHtml(t.from_host)}</strong> | Target Type: ${escapeHtml(t.target_type)}
+            </div>
+            <div class="reach-reasoning">
+              ${escapeHtml(t.reasoning)}
+            </div>
+            ${(t.evidence_references && t.evidence_references.length > 0 && t.evidence_references[0].event_id) ? `
+              <div>
+                <button class="btn btn-outline" style="font-size:11px;" onclick="openEvidenceModal('${t.evidence_references[0].event_id}')">
+                  🔍 Verify Telemetry Provenance (Offset: ${t.evidence_references[0].byte_offset})
+                </button>
+              </div>
             ` : ''}
           </div>
         `;
       }).join("");
     }
 
-    // Evidence Modal (FR-1 byte offset seeking)
+    // -------------------------------------------------------------------------
+    // Evidence Modal (FR-1 Disk Seek Provenance)
+    // -------------------------------------------------------------------------
     async function openEvidenceModal(eventId) {
       const modal = document.getElementById("evidenceModal");
-      const rawJsonEl = document.getElementById("evidRawJson");
-      rawJsonEl.textContent = "Seeking byte offset on disk...";
+      const codeEl = document.getElementById("modalEvidCode");
+      codeEl.textContent = "Seeking raw byte offset from disk...";
       modal.style.display = "flex";
 
       try {
@@ -1429,18 +1922,18 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
-        document.getElementById("evidenceModalTitle").textContent = `Raw Log Provenance: Event ${eventId}`;
-        document.getElementById("evidRawFile").textContent = data.raw_file;
-        document.getElementById("evidOffset").textContent = data.byte_offset.toLocaleString();
-        document.getElementById("evidLen").textContent = data.record_length.toLocaleString();
+        document.getElementById("modalEvidTitle").textContent = `Raw Telemetry Record: Event ${eventId}`;
+        document.getElementById("modalEvidFile").textContent = data.raw_file;
+        document.getElementById("modalEvidOffset").textContent = data.byte_offset.toLocaleString();
+        document.getElementById("modalEvidLength").textContent = `${data.record_length.toLocaleString()} B`;
 
         if (data.raw_json) {
-          rawJsonEl.textContent = JSON.stringify(data.raw_json, null, 2);
+          codeEl.textContent = JSON.stringify(data.raw_json, null, 2);
         } else {
-          rawJsonEl.textContent = data.raw_text;
+          codeEl.textContent = data.raw_text;
         }
       } catch (err) {
-        rawJsonEl.textContent = `Failed to retrieve raw evidence: ${err.message}`;
+        codeEl.textContent = `Failed to seek disk provenance: ${err.message}`;
       }
     }
 
@@ -1448,52 +1941,16 @@
       document.getElementById("evidenceModal").style.display = "none";
     }
 
-    // Trigger Ingestion Pipeline via API
-    async function runIngestion() {
-      const path = document.getElementById("logPathInput").value.trim() || "edr_events.json";
-      const btn = document.getElementById("runIngestBtn");
-      const spinner = document.getElementById("ingestSpinner");
-      const statusText = document.getElementById("systemStatusText");
-
-      btn.disabled = true;
-      spinner.style.display = "inline";
-      statusText.textContent = "Processing Telemetry...";
-
-      try {
-        const res = await fetch("/api/ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ file_path: path })
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.detail || `HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
-        statusText.textContent = "Pipeline Ready";
-        alert(`Ingestion Complete!\n\nRecords Parsed: ${data.ingestion.parsed_ok.toLocaleString()}\nThroughput: ${Math.round(data.ingestion.throughput_records_per_sec).toLocaleString()} rec/sec\nPeak RAM: ${data.ingestion.peak_ram_mb.toFixed(1)} MB\nIncidents Correlated: ${data.incidents_count}`);
-
-        // Reload fresh incidents
-        await fetchIncidents();
-      } catch (err) {
-        statusText.textContent = "Ingestion Error";
-        alert(`Ingestion Failed: ${err.message}`);
-      } finally {
-        btn.disabled = false;
-        spinner.style.display = "none";
-      }
-    }
-
-    // Switch Investigation Tabs
+    // -------------------------------------------------------------------------
+    // Tab Switching
+    // -------------------------------------------------------------------------
     function switchTab(tabId) {
-      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-      document.querySelectorAll(".tab-viewport").forEach(vp => vp.classList.remove("active"));
-
-      event.target.classList.add("active");
-      const targetVp = document.getElementById(tabId);
-      if (targetVp) targetVp.classList.add("active");
+      document.querySelectorAll(".tab-item").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-tab") === tabId);
+      });
+      document.querySelectorAll(".viewport").forEach(vp => {
+        vp.classList.toggle("active", vp.id === tabId);
+      });
 
       if (tabId === "graphTab") {
         setTimeout(() => {

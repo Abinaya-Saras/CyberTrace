@@ -16,16 +16,17 @@ from contextlib import asynccontextmanager
 import json
 import logging
 import os
+import shutil
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.core.duckdb_engine import DuckDBEngine
-from backend.core.pipeline import ingest_file
+from backend.core.pipeline import ingest_file, detect_format
 from backend.correlation.incident_correlator import IncidentCorrelator
 from backend.correlation.models import Incident
 from backend.detection.engine import DetectionEngine
@@ -145,6 +146,59 @@ def start_ingestion(req: IngestionRequest):
     except Exception as e:
         logger.exception("Ingestion failed")
         raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+
+
+@app.post("/api/upload")
+async def upload_and_process_log(file: UploadFile = File(...)):
+    """
+    Multipart file upload endpoint.
+    Streams log file directly to disk in 1MB chunks to prevent memory bloat,
+    validates log format (NDJSON / FortiGate), and triggers the pipeline.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    upload_dir = "data/uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+    dest_path = os.path.join(upload_dir, file.filename)
+
+    try:
+        # Stream file to disk in chunks (O(1) RAM)
+        with open(dest_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer, length=1024 * 1024)
+    except Exception as e:
+        logger.exception("File save failed")
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
+
+    # Format validation
+    fmt = detect_format(dest_path)
+    if fmt == "unknown":
+        if os.path.exists(dest_path):
+            os.remove(dest_path)
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported log format. Only NDJSON/JSON (e.g. EDR events) and FortiGate key-value logs are supported.",
+        )
+
+    try:
+        # Stream-parse into Parquet
+        stats = ingest_file(dest_path, output_dir="data/processed")
+        state["last_ingestion"] = stats.to_dict()
+
+        # Run Detection & Incident Correlation
+        load_pipeline_data(stats.output_file)
+
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "format": fmt,
+            "ingestion": stats.to_dict(),
+            "incidents_count": len(state["incidents"]),
+            "message": f"Uploaded and processed {stats.parsed_ok:,} records into {len(state['incidents'])} correlated incidents.",
+        }
+    except Exception as e:
+        logger.exception("Processing uploaded file failed")
+        raise HTTPException(status_code=500, detail=f"Pipeline processing failed: {str(e)}")
 
 
 @app.get("/api/status")

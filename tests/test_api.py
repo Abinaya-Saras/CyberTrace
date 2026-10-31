@@ -202,6 +202,25 @@ class TestAPIEndpoints:
         assert resp.status_code == 200
         assert "text/html" in resp.headers["content-type"]
         assert "CyberTrace" in resp.text
-        assert "graphCanvas" in resp.text
-        assert "timelineContainer" in resp.text
-        assert "reachGridContainer" in resp.text
+
+    def test_multipart_upload_unsupported_format(self, client):
+        """POST /api/upload rejects unsupported plain text format with 400."""
+        files = {"file": ("unsupported.txt", b"plain text with no structure\nanother line\n", "text/plain")}
+        resp = client.post("/api/upload", files=files)
+        assert resp.status_code == 400
+        assert "unsupported log format" in resp.json()["detail"].lower()
+
+    def test_multipart_upload_valid_file(self, client):
+        """POST /api/upload streams NDJSON file to disk in chunks, parses, and correlates."""
+        with open("edr_events.json", "rb") as f:
+            content = f.read()
+        files = {"file": ("uploaded_edr.json", content, "application/json")}
+        resp = client.post("/api/upload", files=files)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["filename"] == "uploaded_edr.json"
+        assert data["format"] == "ndjson"
+        assert data["ingestion"]["parsed_ok"] == 10000
+        assert data["incidents_count"] >= 29
+
