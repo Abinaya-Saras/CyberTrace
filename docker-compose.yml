@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  cybertrace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cybertrace-app
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistent volumes to ensure datasets and Parquet survive container restarts
+      - ./data/uploads:/app/data/uploads
+      - ./data/processed:/app/data/processed
+      - ./data/dataset_registry.json:/app/data/dataset_registry.json
+    environment:
+      - PYTHONUNBUFFERED=1
+      - APP_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

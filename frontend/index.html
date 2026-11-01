@@ -64,7 +64,7 @@
     }
 
     /* -------------------------------------------------------------------------
-       1. Top Navigation
+       1. Top Header Navigation
        ------------------------------------------------------------------------- */
     header {
       background-color: var(--bg-surface);
@@ -92,7 +92,7 @@
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 14px;
+      font-size: 13px;
       letter-spacing: -0.5px;
     }
 
@@ -111,34 +111,53 @@
       font-weight: 400;
     }
 
-    .header-status {
+    .header-actions {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
+    }
+
+    .active-ds-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
       font-size: 12px;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .active-ds-pill:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+    }
+
+    .ds-indicator-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #16a34a;
     }
 
     .status-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 3px 8px;
+      padding: 4px 10px;
       border-radius: 4px;
       background: var(--success-bg);
       border: 1px solid var(--success-border);
       color: var(--success-text);
+      font-size: 11px;
       font-weight: 500;
     }
 
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #16a34a;
-    }
-
     /* -------------------------------------------------------------------------
-       2. Ingestion Toolbar & Metrics Strip
+       2. Secondary Toolbar & Global Metrics Strip
        ------------------------------------------------------------------------- */
     .toolbar-strip {
       background-color: var(--bg-surface);
@@ -148,130 +167,18 @@
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       flex-shrink: 0;
-    }
-
-    .upload-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 1;
-      min-width: 320px;
-    }
-
-    .file-select-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-color);
-      border-radius: 5px;
-      color: var(--text-main);
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.15s;
-      white-space: nowrap;
-    }
-
-    .file-select-label:hover {
-      background: var(--bg-hover);
-    }
-
-    #logFileInput {
-      display: none;
-    }
-
-    .selected-filename {
-      font-size: 12px;
-      color: var(--text-muted);
-      max-width: 220px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 6px 14px;
-      font-size: 12px;
-      font-weight: 500;
-      border-radius: 5px;
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: all 0.15s;
-      white-space: nowrap;
-    }
-
-    .btn-primary {
-      background-color: var(--primary);
-      color: #fff;
-    }
-
-    .btn-primary:hover {
-      background-color: var(--primary-hover);
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .btn-outline {
-      background: var(--bg-surface);
-      border-color: var(--border-color);
-      color: var(--text-main);
-    }
-
-    .btn-outline:hover {
-      background: var(--bg-subtle);
-    }
-
-    /* Upload Progress Box */
-    .upload-progress-container {
-      display: none;
-      flex: 1;
-      max-width: 380px;
-      margin: 0 10px;
-    }
-
-    .upload-progress-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-bottom: 3px;
-    }
-
-    .upload-progress-bar-bg {
-      width: 100%;
-      height: 6px;
-      background: var(--bg-subtle);
-      border-radius: 3px;
-      overflow: hidden;
-      border: 1px solid var(--border-color);
-    }
-
-    .upload-progress-bar-fill {
-      width: 0%;
-      height: 100%;
-      background: var(--primary);
-      transition: width 0.15s ease;
     }
 
     .metrics-group {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
 
     .metric-item {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 6px;
       font-size: 12px;
@@ -281,35 +188,72 @@
     .metric-value {
       font-weight: 700;
       color: var(--text-main);
-      font-size: 13px;
     }
 
     .metric-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
-      white-space: nowrap;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid transparent;
     }
 
-    .badge-critical { background: var(--crit-bg); color: var(--crit-text); border: 1px solid var(--crit-border); }
-    .badge-high { background: var(--high-bg); color: var(--high-text); border: 1px solid var(--high-border); }
-    .badge-medium { background: var(--med-bg); color: var(--med-text); border: 1px solid var(--med-border); }
-    .badge-low { background: var(--low-bg); color: var(--low-text); border: 1px solid var(--low-border); }
+    .badge-critical { background: var(--crit-bg); color: var(--crit-text); border-color: var(--crit-border); }
+    .badge-high { background: var(--high-bg); color: var(--high-text); border-color: var(--high-border); }
+    .badge-medium { background: var(--med-bg); color: var(--med-text); border-color: var(--med-border); }
+    .badge-low { background: var(--low-bg); color: var(--low-text); border-color: var(--low-border); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-outline {
+      background: var(--bg-surface);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-outline:hover {
+      background: var(--bg-subtle);
+      border-color: var(--border-strong);
+    }
+
+    .btn-sm {
+      padding: 3px 8px;
+      font-size: 11px;
+    }
 
     /* -------------------------------------------------------------------------
-       3. Main Layout Container (Sidebar + Detail)
+       3. Main App Layout (Sidebar + Investigation Panel)
        ------------------------------------------------------------------------- */
     .app-body {
       display: flex;
       flex: 1;
       overflow: hidden;
+      position: relative;
     }
 
-    /* Left Sidebar: Incident List */
+    /* Left Sidebar: Filterable Incidents */
     .sidebar {
-      width: 320px;
+      width: 330px;
       background: var(--bg-surface);
       border-right: 1px solid var(--border-color);
       display: flex;
@@ -318,11 +262,9 @@
     }
 
     .sidebar-header {
-      padding: 10px 14px;
+      padding: 12px;
       border-bottom: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      background: var(--bg-subtle);
     }
 
     .sidebar-search-row {
@@ -336,14 +278,12 @@
       border: 1px solid var(--border-color);
       border-radius: 5px;
       font-size: 12px;
-      color: var(--text-main);
-      background: var(--bg-subtle);
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: var(--border-focus);
       background: var(--bg-surface);
+      color: var(--text-main);
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: var(--primary);
     }
 
     .filter-select {
@@ -351,112 +291,171 @@
       border: 1px solid var(--border-color);
       border-radius: 5px;
       font-size: 12px;
+      background: var(--bg-surface);
       color: var(--text-main);
-      background: var(--bg-subtle);
-      cursor: pointer;
+      outline: none;
     }
 
     .incident-list {
       flex: 1;
       overflow-y: auto;
-      padding: 4px 0;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .incident-item {
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border-color);
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-surface);
       cursor: pointer;
-      transition: background 0.1s;
-      border-left: 3px solid transparent;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .incident-item:hover {
+      border-color: var(--border-strong);
       background: var(--bg-subtle);
     }
 
     .incident-item.active {
+      border-color: var(--primary);
       background: var(--primary-light);
-      border-left-color: var(--primary);
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
     }
 
     .item-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 3px;
     }
 
     .item-id {
+      font-family: var(--font-mono);
+      font-size: 11px;
       font-weight: 700;
-      font-size: 12px;
-      color: var(--text-main);
+      color: var(--primary);
     }
 
     .item-title {
       font-size: 12px;
+      font-weight: 600;
       color: var(--text-main);
-      font-weight: 500;
-      margin-bottom: 5px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      line-height: 1.3;
     }
 
     .item-meta {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       font-size: 11px;
       color: var(--text-subtle);
     }
 
-    /* Right Main Panel: Detail & Tabs */
+    /* Right Main Panel: Investigation */
     .main-panel {
       flex: 1;
       display: flex;
       flex-direction: column;
-      background: var(--bg-page);
       overflow: hidden;
+      background: var(--bg-page);
     }
 
-    .incident-header {
+    /* Empty State Container */
+    .empty-state-view {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .empty-state-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 36px 48px;
+      max-width: 520px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .empty-state-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .empty-state-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    /* -------------------------------------------------------------------------
+       4. Selected Incident Header & 1-Minute Executive Attack Story
+       ------------------------------------------------------------------------- */
+    .incident-header-section {
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border-color);
-      padding: 12px 20px;
+      padding: 14px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
       flex-shrink: 0;
     }
 
-    .inc-title-row {
+    .inc-headline-row {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 6px;
+      align-items: flex-start;
+      gap: 16px;
     }
 
-    .inc-title {
-      font-size: 15px;
+    .inc-main-title {
+      font-size: 16px;
       font-weight: 700;
       color: var(--text-main);
-      letter-spacing: -0.2px;
+      line-height: 1.3;
     }
 
-    .inc-summary {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-      line-height: 1.45;
-      background: var(--bg-subtle);
-      padding: 6px 12px;
-      border-radius: 5px;
-      border: 1px solid var(--border-color);
+    .inc-badges-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .risk-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
     }
 
     .chips-row {
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
       gap: 8px;
     }
 
@@ -464,40 +463,111 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 2px 8px;
+      font-size: 11px;
+      padding: 3px 8px;
       background: var(--bg-subtle);
       border: 1px solid var(--border-color);
       border-radius: 4px;
-      font-size: 11px;
       color: var(--text-muted);
     }
-
     .chip strong {
       color: var(--text-main);
     }
 
-    /* Navigation Tabs */
+    /* 1-Minute Attack Story Box (PRD Mandatory Usability) */
+    .story-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--primary-border);
+      border-left: 4px solid var(--primary);
+      border-radius: 6px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .story-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .story-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .story-toggle-btn {
+      font-size: 11px;
+      color: var(--text-subtle);
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .story-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      padding-top: 4px;
+    }
+
+    .story-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      padding: 8px 10px;
+    }
+
+    .story-q {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .story-a {
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.4;
+    }
+
+    /* -------------------------------------------------------------------------
+       5. Viewport Navigation Tabs
+       ------------------------------------------------------------------------- */
     .tab-strip {
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border-color);
-      display: flex;
-      gap: 2px;
       padding: 0 20px;
+      display: flex;
+      gap: 4px;
       flex-shrink: 0;
     }
 
     .tab-item {
       padding: 9px 16px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-muted);
+      background: transparent;
+      border: none;
       border-bottom: 2px solid transparent;
-      background: none;
-      border-top: none;
-      border-left: none;
-      border-right: none;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-subtle);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.15s ease;
     }
 
     .tab-item:hover {
@@ -507,13 +577,11 @@
     .tab-item.active {
       color: var(--primary);
       border-bottom-color: var(--primary);
-      font-weight: 600;
     }
 
-    /* Tab Content Viewports */
     .viewport {
-      flex: 1;
       display: none;
+      flex: 1;
       overflow: hidden;
       position: relative;
     }
@@ -523,16 +591,12 @@
     }
 
     /* -------------------------------------------------------------------------
-       4. Attack Graph Viewport (Canvas + Controls + Inspector)
+       6. Tab 1: Attack Graph Canvas & Inspector
        ------------------------------------------------------------------------- */
-    #graphTab {
-      flex-direction: row;
-      background: #fafbfc;
-    }
-
     .graph-stage {
       flex: 1;
       position: relative;
+      background: var(--bg-page);
       overflow: hidden;
     }
 
@@ -542,7 +606,6 @@
       display: block;
       cursor: grab;
     }
-
     #graphCanvas:active {
       cursor: grabbing;
     }
@@ -551,73 +614,75 @@
       position: absolute;
       top: 14px;
       left: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 10;
       background: var(--bg-surface);
       border: 1px solid var(--border-color);
       border-radius: 6px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      display: flex;
-      gap: 2px;
-      padding: 3px;
-      z-index: 10;
+      padding: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     }
 
     .ctrl-btn {
       width: 28px;
       height: 28px;
-      border: none;
-      background: transparent;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
       border-radius: 4px;
+      color: var(--text-main);
+      font-size: 13px;
+      font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-muted);
+      transition: background 0.1s;
     }
-
     .ctrl-btn:hover {
-      background: var(--bg-subtle);
-      color: var(--text-main);
+      background: var(--bg-hover);
     }
 
     .graph-legend {
       position: absolute;
-      bottom: 12px;
+      bottom: 14px;
       left: 14px;
-      background: rgba(255, 255, 255, 0.96);
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(4px);
       border: 1px solid var(--border-color);
       border-radius: 6px;
       padding: 6px 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      font-size: 11px;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
       z-index: 10;
     }
 
     .legend-item {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
-      color: var(--text-muted);
     }
 
     .legend-dot {
       width: 8px;
       height: 8px;
-      border-radius: 50%;
+      border-radius: 2px;
     }
 
     .legend-line {
-      width: 18px;
+      width: 16px;
       height: 2px;
+      display: inline-block;
     }
 
-    /* Right Inspector Side-Drawer */
+    /* Inspector Drawer */
     .inspector-panel {
-      width: 310px;
+      width: 320px;
       background: var(--bg-surface);
       border-left: 1px solid var(--border-color);
       display: flex;
@@ -627,63 +692,67 @@
     }
 
     .inspector-header {
-      padding: 10px 14px;
+      padding: 12px 14px;
       border-bottom: 1px solid var(--border-color);
+      background: var(--bg-subtle);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 12px;
       font-weight: 600;
+      font-size: 12px;
       color: var(--text-main);
     }
 
     .inspector-body {
       padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       font-size: 12px;
     }
 
     .prop-row {
-      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
 
     .prop-key {
       font-size: 10px;
+      font-weight: 700;
       color: var(--text-subtle);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 2px;
+      letter-spacing: 0.3px;
     }
 
     .prop-val {
       font-size: 12px;
       color: var(--text-main);
-      word-break: break-word;
-      font-family: var(--font-mono);
       background: var(--bg-subtle);
-      padding: 4px 6px;
-      border-radius: 4px;
       border: 1px solid var(--border-color);
+      padding: 5px 8px;
+      border-radius: 4px;
+      word-break: break-all;
+      font-family: var(--font-mono);
     }
 
     /* -------------------------------------------------------------------------
-       5. Chronological Timeline Viewport (Compact Table / Stream)
+       7. Tab 2: Chronological Timeline
        ------------------------------------------------------------------------- */
-    #timelineTab {
+    .timeline-container {
+      flex: 1;
       padding: 16px 20px;
       overflow-y: auto;
-      flex-direction: column;
-      gap: 8px;
     }
 
-    .timeline-table-card {
+    .timeline-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-color);
       border-radius: 6px;
       overflow: hidden;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
     }
 
-    table.timeline-table {
+    .timeline-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
@@ -692,13 +761,13 @@
 
     .timeline-table th {
       background: var(--bg-subtle);
-      padding: 8px 12px;
-      font-weight: 600;
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 700;
       color: var(--text-muted);
       border-bottom: 1px solid var(--border-color);
-      font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
     }
 
     .timeline-table td {
@@ -708,19 +777,14 @@
       vertical-align: top;
     }
 
-    .timeline-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .timeline-table tr:hover td {
+    .timeline-table tr:hover {
       background: var(--bg-subtle);
     }
 
     .t-step-idx {
-      font-weight: 600;
-      color: var(--text-subtle);
-      font-size: 11px;
-      width: 40px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--primary);
     }
 
     .t-time-val {
@@ -734,31 +798,31 @@
       font-family: var(--font-mono);
       font-size: 11px;
       background: var(--bg-subtle);
-      padding: 3px 6px;
-      border-radius: 4px;
       border: 1px solid var(--border-color);
-      color: var(--text-muted);
+      border-radius: 4px;
+      padding: 4px 6px;
       margin-top: 4px;
       word-break: break-all;
+      color: #1e293b;
     }
 
     /* -------------------------------------------------------------------------
-       6. Potential Next Access Viewport (Rewritten Reach-Next)
+       8. Tab 3: Potential Next Access (Strict Reachability)
        ------------------------------------------------------------------------- */
-    #reachTab {
+    .reach-container {
+      flex: 1;
       padding: 16px 20px;
       overflow-y: auto;
+      display: flex;
       flex-direction: column;
       gap: 14px;
     }
 
-    .reach-explainer-card {
+    .reach-explainer {
       background: var(--bg-surface);
       border: 1px solid var(--border-color);
-      border-left: 3px solid var(--primary);
       border-radius: 6px;
       padding: 12px 16px;
-      font-size: 12px;
     }
 
     .reach-explainer-title {
@@ -769,14 +833,15 @@
     }
 
     .reach-explainer-desc {
+      font-size: 12px;
       color: var(--text-muted);
-      line-height: 1.5;
+      line-height: 1.4;
     }
 
     .reach-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 12px;
     }
 
     .reach-card {
@@ -787,7 +852,6 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
     }
 
     .reach-header {
@@ -798,44 +862,24 @@
     }
 
     .reach-target-title {
-      font-size: 14px;
-      font-weight: 700;
       font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
       color: var(--text-main);
     }
 
     .reach-pill {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
       white-space: nowrap;
     }
 
-    .pill-outbound {
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #1d4ed8;
-    }
-
-    .pill-internal {
-      background: #fefce8;
-      border: 1px solid #fef08a;
-      color: #854d0e;
-    }
-
-    .pill-auth {
-      background: #faf5ff;
-      border: 1px solid #e9d5ff;
-      color: #7e22ce;
-    }
-
-    .pill-confirmed {
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
-      color: #166534;
-    }
+    .pill-confirmed { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+    .pill-auth { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .pill-internal { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+    .pill-outbound { background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color); }
 
     .reach-field-row {
       display: flex;
@@ -848,7 +892,7 @@
       font-weight: 700;
       color: var(--text-subtle);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
     }
 
     .reach-field-val {
@@ -859,44 +903,129 @@
     .reach-reasoning {
       font-size: 12px;
       color: var(--text-muted);
-      line-height: 1.5;
-      background: var(--bg-subtle);
-      padding: 8px 10px;
-      border-radius: 5px;
+      background: var(--bg-page);
       border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 6px 8px;
+      line-height: 1.4;
     }
 
     /* -------------------------------------------------------------------------
-       7. Raw Evidence Modal (FR-1 Disk Seek Provenance)
+       9. Tab 4: Investigation Report (Auto-Written Plain English)
+       ------------------------------------------------------------------------- */
+    .report-container {
+      flex: 1;
+      padding: 16px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .report-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px 16px;
+    }
+
+    .report-paper {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 24px 32px;
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-main);
+    }
+
+    .report-paper h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 6px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .report-paper h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-top: 20px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      border-bottom: 1px solid var(--bg-subtle);
+      padding-bottom: 4px;
+    }
+
+    .report-paper h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-top: 14px;
+      margin-bottom: 6px;
+    }
+
+    .report-paper p, .report-paper ul, .report-paper ol {
+      margin-bottom: 10px;
+      color: var(--text-muted);
+    }
+
+    .report-paper ul, .report-paper ol {
+      padding-left: 20px;
+    }
+
+    .report-paper strong {
+      color: var(--text-main);
+    }
+
+    /* -------------------------------------------------------------------------
+       10. Modals: Dataset Manager & Evidence Provenance
        ------------------------------------------------------------------------- */
     .modal-backdrop {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(15, 23, 42, 0.4);
       display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(2px);
+      z-index: 1000;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      padding: 20px;
     }
 
     .modal-card {
       background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
       border-radius: 8px;
-      width: 90%;
-      max-width: 740px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 820px;
       max-height: 85vh;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+      overflow: hidden;
     }
 
     .modal-head {
-      padding: 12px 18px;
+      padding: 14px 20px;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      background: var(--bg-subtle);
     }
 
     .modal-head h3 {
@@ -906,55 +1035,109 @@
     }
 
     .modal-close-btn {
-      background: transparent;
+      background: none;
       border: none;
       font-size: 16px;
-      cursor: pointer;
       color: var(--text-subtle);
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal-close-btn:hover {
+      color: var(--text-main);
     }
 
     .modal-body {
-      padding: 16px 18px;
+      padding: 20px;
       overflow-y: auto;
-      font-size: 12px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
     }
 
-    .modal-meta-strip {
-      display: flex;
-      gap: 16px;
-      padding: 8px 12px;
+    /* Upload Drop Zone */
+    .upload-zone {
+      border: 2px dashed var(--border-strong);
+      border-radius: 6px;
+      padding: 20px;
+      text-align: center;
       background: var(--bg-subtle);
-      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .upload-zone:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .upload-progress-box {
+      display: none;
+      background: var(--bg-subtle);
       border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .upload-progress-bar-bg {
+      height: 8px;
+      background: var(--border-color);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .upload-progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width 0.15s ease;
+    }
+
+    /* Datasets Table in Modal */
+    .ds-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .ds-table th {
+      background: var(--bg-subtle);
+      padding: 8px 10px;
       font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+      text-transform: uppercase;
+    }
+
+    .ds-table td {
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+
+    .ds-table tr.active-row {
+      background: var(--primary-light);
     }
 
     .raw-code-box {
       font-family: var(--font-mono);
       font-size: 11px;
       background: #0f172a;
-      color: #e2e8f0;
-      padding: 12px;
+      color: #f8fafc;
+      padding: 14px;
       border-radius: 6px;
       overflow-x: auto;
-      line-height: 1.5;
-      max-height: 380px;
-    }
-
-    .empty-state {
-      padding: 30px;
-      text-align: center;
-      color: var(--text-subtle);
-      font-size: 13px;
+      max-height: 420px;
+      white-space: pre-wrap;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
 
-  <!-- 1. Top Navigation -->
+  <!-- 1. Top Header -->
   <header>
     <div class="brand-wrap">
       <div class="brand-logo">CT</div>
@@ -963,39 +1146,23 @@
         <span>Kill Chain & Attack Path Analysis</span>
       </div>
     </div>
-    <div class="header-status">
-      <div class="status-badge">
-        <span class="status-dot"></span>
+    <div class="header-actions">
+      <!-- Active Dataset Indicator Button -->
+      <div class="active-ds-pill" id="activeDatasetBtn" onclick="openDatasetModal()" title="Manage & Switch Datasets">
+        <span class="ds-indicator-dot" id="dsStatusDot"></span>
+        <span id="activeDsLabel">Loading Datasets...</span>
+        <span style="font-size:10px; color:var(--text-subtle);">▼</span>
+      </div>
+      <!-- System Health Badge -->
+      <div class="status-badge" id="systemHealthBadge">
+        <span class="ds-indicator-dot" style="background:#16a34a;"></span>
         <span id="systemStatusText">Pipeline Online</span>
       </div>
     </div>
   </header>
 
-  <!-- 2. Ingestion Toolbar & Metrics Strip -->
+  <!-- 2. Sub-Toolbar & Incident Metric Badges -->
   <div class="toolbar-strip">
-    <div class="upload-group">
-      <label class="file-select-label" for="logFileInput">
-        📁 Choose Log File
-      </label>
-      <input type="file" id="logFileInput" accept=".json,.ndjson,.log">
-      <span class="selected-filename" id="selectedFileName">Default: edr_events.json</span>
-      
-      <!-- Chunked Upload Real-Time Progress -->
-      <div class="upload-progress-container" id="uploadProgressBox">
-        <div class="upload-progress-header">
-          <span id="uploadStatusLabel">Uploading...</span>
-          <span id="uploadPercentLabel" style="font-weight:600; color:var(--primary);">0%</span>
-        </div>
-        <div class="upload-progress-bar-bg">
-          <div class="upload-progress-bar-fill" id="uploadProgressBar"></div>
-        </div>
-      </div>
-
-      <button class="btn btn-primary" id="btnUpload" onclick="handleFileUpload()">
-        Upload & Analyse
-      </button>
-    </div>
-
     <div class="metrics-group">
       <div class="metric-item">
         <span>Incidents:</span>
@@ -1011,16 +1178,22 @@
         <span class="metric-badge badge-medium" id="metricMed">0 Medium</span>
       </div>
     </div>
+
+    <div>
+      <button class="btn btn-outline btn-sm" onclick="openDatasetModal()">
+        📁 Manage Datasets (<span id="btnDsCount">0</span>)
+      </button>
+    </div>
   </div>
 
-  <!-- 3. Main Master-Detail Layout -->
+  <!-- 3. Main Application Body -->
   <div class="app-body">
     
-    <!-- Left Sidebar: Filterable Incident Catalog -->
+    <!-- Left Sidebar: Filterable Incidents List -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-search-row">
-          <input type="text" class="search-input" id="searchInput" placeholder="Filter by host, user, or ID..." oninput="filterIncidents()">
+          <input type="text" class="search-input" id="searchInput" placeholder="Search host, user, rule, or ID..." oninput="filterIncidents()">
           <select class="filter-select" id="severitySelect" onchange="filterIncidents()">
             <option value="">All</option>
             <option value="critical">Critical</option>
@@ -1030,119 +1203,282 @@
         </div>
       </div>
       <div class="incident-list" id="incidentListContainer">
-        <div class="empty-state">Loading incidents...</div>
+        <div class="empty-state" style="padding:16px; color:var(--text-subtle); text-align:center;">Loading incidents...</div>
       </div>
     </aside>
 
     <!-- Right Main Panel: Selected Incident Investigation -->
-    <main class="main-panel">
+    <main class="main-panel" id="mainPanel">
       
-      <!-- Incident Detail Header -->
-      <section class="incident-header">
-        <div class="inc-title-row">
-          <div class="inc-title" id="activeIncTitle">Select an incident to investigate</div>
-          <div id="activeIncBadges"></div>
+      <!-- Empty State View (Shown when no active dataset or no incidents) -->
+      <div class="empty-state-view" id="emptyStateView" style="display:none;">
+        <div class="empty-state-card">
+          <div class="empty-state-icon">📁</div>
+          <div class="empty-state-title" id="emptyStateTitle">No Active Dataset Selected</div>
+          <div class="empty-state-desc" id="emptyStateDesc">
+            Select a previously processed dataset or upload new security telemetry logs to reconstruct kill chains and investigate attack paths.
+          </div>
+          <button class="btn btn-primary" onclick="openDatasetModal()">
+            Select or Upload Dataset
+          </button>
         </div>
-        <div class="inc-summary" id="activeIncSummary">
-          No incident selected.
-        </div>
-        <div class="chips-row" id="activeIncChips"></div>
-      </section>
-
-      <!-- Viewport Navigation Tabs -->
-      <nav class="tab-strip">
-        <button class="tab-item active" data-tab="graphTab" onclick="switchTab('graphTab')">Attack Graph</button>
-        <button class="tab-item" data-tab="timelineTab" onclick="switchTab('timelineTab')">Chronological Timeline</button>
-        <button class="tab-item" data-tab="reachTab" onclick="switchTab('reachTab')">Potential Next Access</button>
-      </nav>
-
-      <!-- Tab 1: Structured Layered Attack Graph -->
-      <div class="viewport active" id="graphTab">
-        <div class="graph-stage">
-          <div class="graph-controls">
-            <button class="ctrl-btn" onclick="zoomGraph(1.15)" title="Zoom In">+</button>
-            <button class="ctrl-btn" onclick="zoomGraph(0.85)" title="Zoom Out">−</button>
-            <button class="ctrl-btn" onclick="fitGraphView()" title="Fit to View">⛶</button>
-          </div>
-
-          <div class="graph-legend">
-            <div class="legend-item"><span class="legend-dot" style="background:#0d9488;"></span> Host</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#7c3aed;"></span> Process</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#d97706;"></span> Registry</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#e11d48;"></span> File</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#2563eb;"></span> Network (Outbound)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#dc2626;"></span> Alert</div>
-            <div class="legend-item"><span class="legend-line" style="background:#2563eb;"></span> Observed</div>
-            <div class="legend-item"><span class="legend-line" style="border-top:2px dashed #94a3b8;"></span> Inferred</div>
-          </div>
-
-          <canvas id="graphCanvas"></canvas>
-        </div>
-
-        <!-- Node / Edge Inspector Drawer -->
-        <aside class="inspector-panel" id="graphInspector">
-          <div class="inspector-header">
-            <span id="inspectorTitle">Inspector</span>
-            <span style="font-size:11px; color:var(--text-subtle);">Click node or edge</span>
-          </div>
-          <div class="inspector-body" id="inspectorBody">
-            <div style="color:var(--text-subtle);">Select an entity in the graph to inspect its telemetry attributes and source evidence.</div>
-          </div>
-        </aside>
       </div>
 
-      <!-- Tab 2: Chronological Timeline Stream -->
-      <div class="viewport" id="timelineTab">
-        <div class="timeline-table-card">
-          <table class="timeline-table">
+      <!-- Incident Investigation Workspace (Shown when active incident exists) -->
+      <div id="investigationWorkspace" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+        
+        <!-- Incident Headline Section -->
+        <section class="incident-header-section">
+          <div class="inc-headline-row">
+            <div>
+              <div class="inc-main-title" id="activeIncTitle">Select an incident</div>
+            </div>
+            <div class="inc-badges-row" id="activeIncBadges"></div>
+          </div>
+
+          <div class="chips-row" id="activeIncChips"></div>
+
+          <!-- 1-Minute Executive Attack Story Card (PRD Usability Requirement) -->
+          <div class="story-card" id="storyCard">
+            <div class="story-card-header" onclick="toggleStoryDetails()">
+              <div class="story-title">
+                <span>⏱️</span>
+                <span>1-Minute Executive Attack Story</span>
+                <span class="risk-badge" id="storyRiskScore">Risk: 0/100</span>
+              </div>
+              <button class="story-toggle-btn" id="storyToggleBtn">
+                <span>Details</span> <span id="storyToggleIcon">▼</span>
+              </button>
+            </div>
+
+            <!-- Plain English Executive Summary -->
+            <div id="storyExecutiveSummary" style="font-size:13px; color:var(--text-main); font-weight:500; line-height:1.4;">
+              Loading attack story...
+            </div>
+
+            <!-- Expandable 8-Question PRD Breakdown -->
+            <div class="story-grid" id="storyGrid" style="display:none;">
+              <div class="story-item">
+                <span class="story-q">1. What Happened?</span>
+                <span class="story-a" id="sqWhatHappened">—</span>
+              </div>
+              <div class="story-item">
+                <span class="story-q">2. Host & Actor Involved</span>
+                <span class="story-a" id="sqEntities">—</span>
+              </div>
+              <div class="story-item">
+                <span class="story-q">3. What Happened First?</span>
+                <span class="story-a" id="sqFirst">—</span>
+              </div>
+              <div class="story-item">
+                <span class="story-q">4. What Happened Next?</span>
+                <span class="story-a" id="sqNext">—</span>
+              </div>
+              <div class="story-item">
+                <span class="story-q">5. Detections Triggered</span>
+                <span class="story-a" id="sqDetections">—</span>
+              </div>
+              <div class="story-item">
+                <span class="story-q">6. Connecting Evidence</span>
+                <span class="story-a" id="sqEvidence">—</span>
+              </div>
+              <div class="story-item">
+                <span class="story-q">7. Confirmed vs Inferred</span>
+                <span class="story-a" id="sqConfirmedInferred">—</span>
+              </div>
+              <div class="story-item">
+                <span class="story-q">8. Known Outcome & Impact</span>
+                <span class="story-a" id="sqOutcome">—</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Viewport Navigation Tabs -->
+        <nav class="tab-strip">
+          <button class="tab-item active" data-tab="graphTab" onclick="switchTab('graphTab')">Attack Graph</button>
+          <button class="tab-item" data-tab="timelineTab" onclick="switchTab('timelineTab')">Chronological Timeline</button>
+          <button class="tab-item" data-tab="reachTab" onclick="switchTab('reachTab')">Potential Next Access</button>
+          <button class="tab-item" data-tab="reportTab" onclick="switchTab('reportTab')">Incident Report</button>
+        </nav>
+
+        <!-- Tab 1: Structured Layered Attack Graph -->
+        <div class="viewport active" id="graphTab">
+          <div class="graph-stage">
+            <div class="graph-controls">
+              <button class="ctrl-btn" onclick="zoomGraph(1.15)" title="Zoom In">+</button>
+              <button class="ctrl-btn" onclick="zoomGraph(0.85)" title="Zoom Out">−</button>
+              <button class="ctrl-btn" onclick="fitGraphView()" title="Fit to View">⛶</button>
+              <button class="ctrl-btn" onclick="resetGraphView()" title="Reset View">↺</button>
+            </div>
+
+            <div class="graph-legend">
+              <div class="legend-item"><span class="legend-dot" style="background:#0d9488;"></span> Host</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#7c3aed;"></span> Process</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#d97706;"></span> Registry</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#e11d48;"></span> File</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#2563eb;"></span> Supporting Network</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#dc2626;"></span> Alert</div>
+              <div class="legend-item"><span class="legend-line" style="background:#2563eb;"></span> Observed</div>
+              <div class="legend-item"><span class="legend-line" style="border-top:2px dashed #94a3b8;"></span> Inferred</div>
+            </div>
+
+            <canvas id="graphCanvas"></canvas>
+          </div>
+
+          <!-- Inspector Slide-Out Drawer -->
+          <aside class="inspector-panel" id="graphInspector">
+            <div class="inspector-header">
+              <span id="inspectorTitle">Inspector</span>
+              <span style="font-size:11px; color:var(--text-subtle);">Click node or edge</span>
+            </div>
+            <div class="inspector-body" id="inspectorBody">
+              <div style="color:var(--text-subtle);">Select an entity or relationship in the attack graph to inspect telemetry details and raw disk provenance.</div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- Tab 2: Chronological Timeline -->
+        <div class="viewport" id="timelineTab">
+          <div class="timeline-container">
+            <div class="timeline-card">
+              <table class="timeline-table">
+                <thead>
+                  <tr>
+                    <th style="width:50px;">Step</th>
+                    <th style="width:170px;">Timestamp</th>
+                    <th style="width:160px;">Host & Actor</th>
+                    <th style="width:200px;">MITRE Technique</th>
+                    <th>Action & Telemetry</th>
+                    <th style="width:110px;">Evidence</th>
+                  </tr>
+                </thead>
+                <tbody id="timelineTbody">
+                  <tr>
+                    <td colspan="6" class="empty-state">No timeline events available.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Potential Next Access -->
+        <div class="viewport" id="reachTab">
+          <div class="reach-container">
+            <div class="reach-explainer">
+              <div class="reach-explainer-title">Potential Next Access Reachability</div>
+              <div class="reach-explainer-desc">
+                Answers: <em>"What other systems could the attacker potentially access next, based on the available evidence?"</em>
+                Distinguishes observed outbound connections from internal network activity and confirmed remote compromise. Outbound connections alone do not prove attacker control or downstream breach.
+              </div>
+            </div>
+            <div class="reach-grid" id="reachGrid">
+              <div class="empty-state">Loading reachability analysis...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Automatically Written Incident Report (Bonus PRD Requirement) -->
+        <div class="viewport" id="reportTab">
+          <div class="report-container">
+            <div class="report-toolbar">
+              <span style="font-size:13px; font-weight:600; color:var(--text-main);">
+                Incident Investigation Report (11 PRD Sections)
+              </span>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-outline btn-sm" onclick="copyReportMarkdown()">
+                  📋 Copy Markdown
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="downloadReportMarkdown()">
+                  ⬇️ Download (.md)
+                </button>
+              </div>
+            </div>
+            <div class="report-paper" id="reportPaper">
+              <div>Loading report content...</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal 1: Persistent Dataset Manager -->
+  <div class="modal-backdrop" id="datasetModal" onclick="if(event.target===this)closeDatasetModal()">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Dataset Management & Ingestion</h3>
+        <button class="modal-close-btn" onclick="closeDatasetModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Upload Area -->
+        <div class="upload-zone" onclick="document.getElementById('logFileInput').click()">
+          <input type="file" id="logFileInput" accept=".json,.ndjson,.log" style="display:none;" onchange="handleFileSelected(event)">
+          <div style="font-size:22px; margin-bottom:4px;">📤</div>
+          <div style="font-weight:600; color:var(--text-main); margin-bottom:2px;">Upload New Telemetry File</div>
+          <div style="font-size:11px; color:var(--text-subtle);">
+            Supports EDR NDJSON/JSON logs and FortiGate firewall logs. Bounded-memory streaming with persistent Parquet caching.
+          </div>
+        </div>
+
+        <!-- Live Chunked Upload Progress -->
+        <div class="upload-progress-box" id="uploadProgressBox">
+          <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600;">
+            <span id="uploadStatusLabel">Uploading...</span>
+            <span id="uploadPercentLabel" style="color:var(--primary);">0%</span>
+          </div>
+          <div class="upload-progress-bar-bg">
+            <div class="upload-progress-bar-fill" id="uploadProgressBar"></div>
+          </div>
+        </div>
+
+        <!-- Persistent Dataset Registry Table -->
+        <div>
+          <div style="font-weight:700; font-size:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>Registered Datasets</span>
+            <span style="font-size:11px; font-weight:400; color:var(--text-subtle);">
+              Parquet outputs are reused automatically without re-parsing
+            </span>
+          </div>
+          
+          <table class="ds-table">
             <thead>
               <tr>
-                <th style="width:50px;">Step</th>
-                <th style="width:170px;">Timestamp</th>
-                <th style="width:160px;">Host & Actor</th>
-                <th style="width:200px;">MITRE Technique</th>
-                <th>Action & Telemetry</th>
-                <th style="width:110px;">Evidence</th>
+                <th>Dataset Name</th>
+                <th>File Size</th>
+                <th>Format</th>
+                <th>Upload Date</th>
+                <th>Incidents</th>
+                <th>Action</th>
               </tr>
             </thead>
-            <tbody id="timelineTbody">
+            <tbody id="datasetTableBody">
               <tr>
-                <td colspan="6" class="empty-state">No timeline events available.</td>
+                <td colspan="6" style="text-align:center; color:var(--text-subtle);">Loading datasets...</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
 
-      <!-- Tab 3: Potential Next Access Viewport -->
-      <div class="viewport" id="reachTab">
-        <div class="reach-explainer-card">
-          <div class="reach-explainer-title">Potential Next Access Analysis</div>
-          <div class="reach-explainer-desc">
-            Answers: <em>"What other systems could the attacker access next, based on the available evidence?"</em>
-            Observed network connections or authentication attempts do not confirm successful remote access. Downstream access is confirmed only when telemetry supports actual execution or compromise on the target system.
-          </div>
-        </div>
-        <div class="reach-grid" id="reachGrid">
-          <div class="empty-state">No reach targets recorded.</div>
-        </div>
       </div>
-
-    </main>
+    </div>
   </div>
 
-  <!-- Raw Evidence Modal (Byte Offset Disk Seek) -->
+  <!-- Modal 2: Raw Telemetry Evidence Provenance (FR-1 Disk Seek) -->
   <div class="modal-backdrop" id="evidenceModal" onclick="if(event.target===this)closeEvidenceModal()">
     <div class="modal-card">
       <div class="modal-head">
-        <h3 id="modalEvidTitle">Raw Log Evidence Provenance</h3>
+        <h3 id="modalEvidTitle">Raw Telemetry Provenance</h3>
         <button class="modal-close-btn" onclick="closeEvidenceModal()">✕</button>
       </div>
       <div class="modal-body">
-        <div class="modal-meta-strip">
-          <div>Source: <strong id="modalEvidFile">edr_events.json</strong></div>
-          <div>Byte Offset: <strong id="modalEvidOffset">0</strong></div>
-          <div>Length: <strong id="modalEvidLength">0 B</strong></div>
+        <div class="chips-row">
+          <span class="chip">Source: <strong id="modalEvidFile">file</strong></span>
+          <span class="chip">Byte Offset: <strong id="modalEvidOffset">0</strong></span>
+          <span class="chip">Record Length: <strong id="modalEvidLength">0 B</strong></span>
         </div>
         <pre class="raw-code-box" id="modalEvidCode">Seeking byte offset on disk...</pre>
       </div>
@@ -1153,18 +1489,21 @@
     // -------------------------------------------------------------------------
     // Application State
     // -------------------------------------------------------------------------
+    let datasets = [];
+    let activeDatasetId = null;
     let incidents = [];
     let activeIncidentId = null;
     let activeIncidentData = null;
+    let activeReportData = null;
 
-    // Graph Canvas State
+    // Canvas & Attack Graph State
     let graphNodes = [];
     let graphEdges = [];
     let nodeLayout = {};
     let edgeLayout = [];
     let transform = { x: 0, y: 0, scale: 1 };
     
-    // Canvas Interaction State
+    // Canvas Pan & Drag
     let isPanning = false;
     let panStart = { x: 0, y: 0 };
     let draggedNode = null;
@@ -1173,101 +1512,212 @@
     let hoveredNode = null;
     let selectedNode = null;
     let selectedEdge = null;
-
-    // Grouping of repeated process instances
     let expandedProcessGroups = new Set();
 
     const canvas = document.getElementById("graphCanvas");
     const ctx = canvas.getContext("2d");
 
-    // Initialize on page load
-    window.addEventListener("DOMContentLoaded", () => {
+    // -------------------------------------------------------------------------
+    // Initialization Lifecycle
+    // -------------------------------------------------------------------------
+    window.addEventListener("DOMContentLoaded", async () => {
       setupCanvas();
-      setupFileInput();
-      fetchIncidents().then(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const incParam = urlParams.get("inc");
-        if (incParam) {
-          selectIncident(incParam);
+      await loadDatasets();
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const incParam = urlParams.get("inc");
+      if (incParam) {
+        await selectIncident(incParam);
+      }
+      const tabParam = urlParams.get("tab") || (window.location.hash ? window.location.hash.substring(1) : null);
+      if (tabParam && document.getElementById(tabParam)) {
+        switchTab(tabParam);
+      }
+      if (urlParams.get("story") === "expanded") {
+        const grid = document.getElementById("storyGrid");
+        if (grid && grid.style.display === "none") {
+          toggleStoryDetails();
         }
-        const expandParam = urlParams.get("expand");
-        if (expandParam) {
-          toggleProcessGroup(expandParam);
-        }
-        if (window.location.hash) {
-          const tabId = window.location.hash.substring(1);
-          if (document.getElementById(tabId)) {
-            switchTab(tabId);
-          }
-        }
-        const evidParam = urlParams.get("evidence");
-        if (evidParam) {
-          setTimeout(() => openEvidenceModal(evidParam), 150);
-        }
-      });
+      }
+      if (urlParams.get("modal") === "datasets") {
+        openDatasetModal();
+      }
+      if (urlParams.get("empty") === "1") {
+        showEmptyState("No Active Dataset Selected", "Please select a registered dataset from the manager or upload a new log file to begin analysis.");
+      }
     });
 
     // -------------------------------------------------------------------------
-    // Large File Chunked Upload & Pipeline Trigger
+    // Dataset Management & Persistent Ingestion
     // -------------------------------------------------------------------------
-    function setupFileInput() {
-      const input = document.getElementById("logFileInput");
-      input.addEventListener("change", () => {
-        if (input.files && input.files.length > 0) {
-          const file = input.files[0];
-          const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-          document.getElementById("selectedFileName").textContent = `${file.name} (${sizeMb} MB)`;
+    async function loadDatasets() {
+      try {
+        const res = await fetch("/api/datasets");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        datasets = data.datasets || [];
+        activeDatasetId = data.active_dataset_id;
+
+        document.getElementById("btnDsCount").textContent = datasets.length;
+        renderDatasetTable();
+        updateActiveDatasetPill();
+
+        if (activeDatasetId) {
+          await fetchIncidents();
+        } else {
+          showEmptyState("No Active Dataset Selected", "Please select a registered dataset from the manager or upload a new log file to begin analysis.");
         }
-      });
+      } catch (err) {
+        console.error("Failed to load datasets:", err);
+      }
     }
 
-    async function handleFileUpload() {
-      const input = document.getElementById("logFileInput");
-      const btn = document.getElementById("btnUpload");
-      const statusText = document.getElementById("systemStatusText");
+    function updateActiveDatasetPill() {
+      const pill = document.getElementById("activeDatasetBtn");
+      const label = document.getElementById("activeDsLabel");
+      const dot = document.getElementById("dsStatusDot");
+
+      const activeDs = datasets.find(d => d.dataset_id === activeDatasetId);
+      if (activeDs) {
+        label.textContent = `${activeDs.filename} (${activeDs.file_size_mb} MB)`;
+        dot.style.background = "#16a34a";
+      } else {
+        label.textContent = "No Dataset Selected";
+        dot.style.background = "#94a3b8";
+      }
+    }
+
+    function renderDatasetTable() {
+      const tbody = document.getElementById("datasetTableBody");
+      if (!datasets || datasets.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-subtle); padding:16px;">No datasets uploaded yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = datasets.map(d => {
+        const isActive = d.dataset_id === activeDatasetId;
+        const rowClass = isActive ? "active-row" : "";
+        const uploadDate = d.upload_date ? new Date(d.upload_date).toLocaleString() : "Pre-loaded";
+        
+        return `
+          <tr class="${rowClass}">
+            <td>
+              <div style="font-weight:600; color:var(--text-main);">${escapeHtml(d.filename)}</div>
+              ${isActive ? '<span style="font-size:10px; color:var(--primary); font-weight:700;">● CURRENTLY ACTIVE</span>' : ''}
+            </td>
+            <td>${d.file_size_mb} MB</td>
+            <td><span class="chip" style="font-size:10px;">${escapeHtml(d.detected_format || 'auto')}</span></td>
+            <td style="font-size:11px; color:var(--text-muted);">${uploadDate}</td>
+            <td><strong>${d.incidents_count ?? '—'}</strong></td>
+            <td>
+              <div style="display:flex; gap:6px;">
+                ${isActive ? `
+                  <button class="btn btn-outline btn-sm" disabled style="opacity:0.6;">Active</button>
+                ` : `
+                  <button class="btn btn-primary btn-sm" onclick="selectDataset('${d.dataset_id}')">Select</button>
+                `}
+                <button class="btn btn-outline btn-sm" title="Re-run parsing pipeline" onclick="reprocessDataset('${d.dataset_id}')">↺</button>
+                ${!isActive ? `
+                  <button class="btn btn-outline btn-sm" style="color:#dc2626;" title="Delete dataset" onclick="deleteDataset('${d.dataset_id}')">✕</button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    async function selectDataset(datasetId) {
+      try {
+        const statusText = document.getElementById("systemStatusText");
+        statusText.textContent = "Activating Dataset...";
+        
+        const res = await fetch("/api/datasets/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dataset_id: datasetId })
+        });
+        
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        const data = await res.json();
+        
+        activeDatasetId = datasetId;
+        statusText.textContent = "Pipeline Online";
+        closeDatasetModal();
+        await loadDatasets();
+      } catch (err) {
+        alert(`Failed to activate dataset: ${err.message}`);
+      }
+    }
+
+    async function reprocessDataset(datasetId) {
+      if (!confirm("Reprocess this dataset from raw log telemetry? This will overwrite the cached Parquet.")) return;
+      try {
+        const statusText = document.getElementById("systemStatusText");
+        statusText.textContent = "Reprocessing Telemetry...";
+        
+        const res = await fetch("/api/datasets/reprocess", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dataset_id: datasetId })
+        });
+        
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        const data = await res.json();
+        
+        statusText.textContent = "Pipeline Online";
+        alert(`Reprocessing complete! ${data.incidents_count} incidents correlated.`);
+        await loadDatasets();
+      } catch (err) {
+        alert(`Reprocess failed: ${err.message}`);
+      }
+    }
+
+    async function deleteDataset(datasetId) {
+      if (!confirm("Delete this dataset and its cached Parquet file?")) return;
+      try {
+        const res = await fetch(`/api/datasets/${datasetId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await loadDatasets();
+      } catch (err) {
+        alert(`Delete failed: ${err.message}`);
+      }
+    }
+
+    function openDatasetModal() {
+      renderDatasetTable();
+      document.getElementById("datasetModal").style.display = "flex";
+    }
+
+    function closeDatasetModal() {
+      document.getElementById("datasetModal").style.display = "none";
+    }
+
+    // -------------------------------------------------------------------------
+    // Chunked File Upload with Parquet Reuse Check
+    // -------------------------------------------------------------------------
+    async function handleFileSelected(e) {
+      const input = e.target;
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+
+      const CHUNK_SIZE = 32 * 1024 * 1024; // 32MB chunks direct to disk seek
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+      const totalSizeMb = (file.size / (1024 * 1024)).toFixed(1);
+
       const progressBox = document.getElementById("uploadProgressBox");
       const progressBar = document.getElementById("uploadProgressBar");
       const statusLabel = document.getElementById("uploadStatusLabel");
       const percentLabel = document.getElementById("uploadPercentLabel");
+      const statusText = document.getElementById("systemStatusText");
 
-      if (!input.files || input.files.length === 0) {
-        // Trigger server ingestion of default dataset if no local file selected
-        try {
-          btn.disabled = true;
-          statusText.textContent = "Processing Default Dataset...";
-          const res = await fetch("/api/ingest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ file_path: "edr_events.json" })
-          });
-          if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
-          const data = await res.json();
-          statusText.textContent = "Pipeline Online";
-          alert(`Analysis Complete!\nParsed: ${data.ingestion.parsed_ok.toLocaleString()} records\nThroughput: ${Math.round(data.ingestion.throughput_records_per_sec).toLocaleString()} rec/sec\nIncidents: ${data.incidents_count}`);
-          await fetchIncidents();
-        } catch (err) {
-          statusText.textContent = "Ingestion Error";
-          alert(`Analysis Failed: ${err.message}`);
-        } finally {
-          btn.disabled = false;
-        }
-        return;
-      }
-
-      // Robust Chunked Upload (32 MB chunks direct to disk seek offset)
-      const file = input.files[0];
-      const CHUNK_SIZE = 32 * 1024 * 1024; // 32 MB
-      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-      const totalSizeMb = (file.size / (1024 * 1024)).toFixed(1);
-
-      btn.disabled = true;
-      progressBox.style.display = "block";
-      statusText.textContent = "Uploading Log Telemetry...";
+      progressBox.style.display = "flex";
+      statusLabel.textContent = `Preparing upload: ${file.name}...`;
 
       let uploadId = null;
 
       try {
-        // 1. Initialize upload session
+        // 1. Initialize Upload Session
         const initRes = await fetch("/api/upload/init", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1278,21 +1728,17 @@
           })
         });
 
-        if (!initRes.ok) {
-          const errData = await initRes.json();
-          throw new Error(errData.detail || "Failed to initialize upload session");
-        }
-
+        if (!initRes.ok) throw new Error((await initRes.json()).detail || "Failed to init upload");
         const initData = await initRes.json();
         uploadId = initData.upload_id;
 
-        // 2. Sequential chunk upload with retry
+        // 2. Sequential Chunk Upload
         for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
           const start = chunkIdx * CHUNK_SIZE;
           const end = Math.min(file.size, start + CHUNK_SIZE);
           const chunkBlob = file.slice(start, end);
 
-          let chunkSuccess = false;
+          let chunkOk = false;
           let lastErr = null;
 
           for (let attempt = 1; attempt <= 3; attempt++) {
@@ -1307,79 +1753,107 @@
                 body: formData
               });
 
-              if (!chunkRes.ok) {
-                const chunkErr = await chunkRes.json();
-                throw new Error(chunkErr.detail || `Chunk ${chunkIdx} failed HTTP ${chunkRes.status}`);
-              }
-
-              chunkSuccess = true;
+              if (!chunkRes.ok) throw new Error(`Chunk ${chunkIdx} failed HTTP ${chunkRes.status}`);
+              chunkOk = true;
               break;
             } catch (err) {
               lastErr = err;
-              if (attempt < 3) {
-                statusLabel.textContent = `Retrying chunk ${chunkIdx + 1}/${totalChunks}...`;
-                await new Promise(r => setTimeout(r, 800));
-              }
+              if (attempt < 3) await new Promise(r => setTimeout(r, 800));
             }
           }
 
-          if (!chunkSuccess) {
-            throw new Error(`Upload failed at chunk ${chunkIdx + 1}/${totalChunks}: ${lastErr?.message}`);
-          }
+          if (!chunkOk) throw new Error(`Upload failed at chunk ${chunkIdx + 1}/${totalChunks}: ${lastErr?.message}`);
 
-          // Update Progress Bar
           const transferredBytes = Math.min(file.size, (chunkIdx + 1) * CHUNK_SIZE);
-          const transferredMb = (transferredBytes / (1024 * 1024)).toFixed(1);
           const pct = Math.round((transferredBytes / file.size) * 100);
-
           progressBar.style.width = `${pct}%`;
           percentLabel.textContent = `${pct}%`;
-          statusLabel.textContent = `Chunk ${chunkIdx + 1}/${totalChunks} (${transferredMb} / ${totalSizeMb} MB)`;
+          statusLabel.textContent = `Uploaded Chunk ${chunkIdx + 1}/${totalChunks} (${(transferredBytes / (1024 * 1024)).toFixed(1)} / ${totalSizeMb} MB)`;
         }
 
-        // 3. Finalize upload & start pipeline
-        statusLabel.textContent = "Finalizing & Analysing...";
-        statusText.textContent = "Analysing Uploaded Dataset...";
+        // 3. Finalize Upload & Check Parquet Reuse
+        statusLabel.textContent = "Finalizing & Verifying Parquet Reuse...";
+        statusText.textContent = "Finalizing Dataset...";
 
         const finalRes = await fetch("/api/upload/finalize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             upload_id: uploadId,
-            trigger_pipeline: true
+            trigger_pipeline: true,
+            async_pipeline: true
           })
         });
 
-        if (!finalRes.ok) {
-          const finalErr = await finalRes.json();
-          throw new Error(finalErr.detail || "Finalization failed");
+        if (!finalRes.ok) throw new Error((await finalRes.json()).detail || "Finalize failed");
+        const finalData = await finalRes.json();
+
+        // Check if existing Parquet was reused instantly
+        if (finalData.reused_parquet) {
+          statusText.textContent = "Pipeline Online";
+          progressBox.style.display = "none";
+          alert(`Instant Parquet Reuse!\n\nA matching processed Parquet output already exists for '${file.name}'. Loaded ${finalData.incidents_count} incidents instantly without re-parsing the original file.`);
+          closeDatasetModal();
+          await loadDatasets();
+          return;
         }
 
-        const data = await finalRes.json();
-        statusText.textContent = "Pipeline Online";
-        progressBox.style.display = "none";
-        progressBar.style.width = "0%";
+        // 4. Background Pipeline Progress Polling (if processing from scratch)
+        if (finalData.status === "processing" && finalData.job_id) {
+          statusText.textContent = "Ingesting & Correlating...";
+          progressBar.style.width = "0%";
+          percentLabel.textContent = "0%";
 
-        const throughput = data.pipeline ? Math.round(data.pipeline.throughput_records_per_sec).toLocaleString() : "N/A";
-        const parsed = data.pipeline ? data.pipeline.parsed_ok.toLocaleString() : "N/A";
+          let completed = false;
+          let jobData = null;
 
-        alert(`Upload & Analysis Complete!\n\nFile: ${data.filename} (${(data.file_size / (1024 * 1024)).toFixed(1)} MB)\nFormat: ${data.format}\nParsed Records: ${parsed}\nThroughput: ${throughput} rec/sec\nIncidents Correlated: ${data.incidents_count}`);
-        await fetchIncidents();
+          while (!completed) {
+            await new Promise(r => setTimeout(r, 800));
+            try {
+              const jRes = await fetch(`/api/jobs/${finalData.job_id}`);
+              if (!jRes.ok) continue;
+              jobData = await jRes.json();
+
+              if (jobData.status === "failed") {
+                throw new Error(jobData.error || jobData.message || "Processing failed");
+              }
+
+              const pct = Math.round(jobData.progress_pct || 0);
+              progressBar.style.width = `${pct}%`;
+              percentLabel.textContent = `${pct}%`;
+              statusLabel.textContent = jobData.message || `Processing (${pct}%)...`;
+
+              if (jobData.status === "completed") {
+                completed = true;
+              }
+            } catch (pollErr) {
+              if (jobData && jobData.status === "failed") throw pollErr;
+            }
+          }
+
+          statusText.textContent = "Pipeline Online";
+          progressBox.style.display = "none";
+          alert(`Analysis Complete!\n\nFile: ${jobData.filename}\nFormat: ${jobData.format}\nParsed Records: ${(jobData.records_processed || 0).toLocaleString()}\nIncidents Correlated: ${jobData.incidents_count}`);
+          closeDatasetModal();
+          await loadDatasets();
+        } else {
+          statusText.textContent = "Pipeline Online";
+          progressBox.style.display = "none";
+          closeDatasetModal();
+          await loadDatasets();
+        }
       } catch (err) {
         statusText.textContent = "Upload Failed";
-        alert(`Upload Error: ${err.message}`);
-        // Clean up temporary files on server
-        if (uploadId) {
-          fetch(`/api/upload/${uploadId}`, { method: "DELETE" }).catch(() => {});
-        }
+        alert(`Upload error: ${err.message}`);
+        if (uploadId) fetch(`/api/upload/${uploadId}`, { method: "DELETE" }).catch(() => {});
       } finally {
-        btn.disabled = false;
+        input.value = "";
         progressBox.style.display = "none";
       }
     }
 
     // -------------------------------------------------------------------------
-    // Incident Catalog & Metrics Strip
+    // Incident Catalog & Metrics
     // -------------------------------------------------------------------------
     async function fetchIncidents() {
       try {
@@ -1390,14 +1864,29 @@
         renderIncidentList(incidents);
 
         if (incidents.length > 0) {
+          showInvestigationWorkspace();
           await selectIncident(incidents[0].incident_id);
+        } else {
+          showEmptyState("No Incidents Detected", "The active dataset contains no correlated attack sequences or security alerts.");
         }
       } catch (err) {
         console.error("Failed to load incidents:", err);
-        document.getElementById("incidentListContainer").innerHTML = `
-          <div class="empty-state">Failed to load incidents: ${err.message}</div>
-        `;
+        showEmptyState("Error Loading Incidents", err.message);
       }
+    }
+
+    function showEmptyState(title, desc) {
+      document.getElementById("emptyStateTitle").textContent = title;
+      document.getElementById("emptyStateDesc").textContent = desc;
+      document.getElementById("emptyStateView").style.display = "flex";
+      document.getElementById("investigationWorkspace").style.display = "none";
+      document.getElementById("incidentListContainer").innerHTML = `<div style="padding:16px; color:var(--text-subtle); text-align:center;">No incidents</div>`;
+      updateMetrics();
+    }
+
+    function showInvestigationWorkspace() {
+      document.getElementById("emptyStateView").style.display = "none";
+      document.getElementById("investigationWorkspace").style.display = "flex";
     }
 
     function updateMetrics() {
@@ -1417,18 +1906,17 @@
     function renderIncidentList(items) {
       const container = document.getElementById("incidentListContainer");
       if (!items || items.length === 0) {
-        container.innerHTML = '<div class="empty-state">No matching incidents.</div>';
+        container.innerHTML = '<div style="padding:16px; color:var(--text-subtle); text-align:center;">No matching incidents</div>';
         return;
       }
 
       container.innerHTML = items.map(inc => {
         const activeClass = inc.incident_id === activeIncidentId ? "active" : "";
         const sevClass = `badge-${(inc.severity || 'low').toLowerCase()}`;
-        const host = (inc.hosts && inc.hosts.length > 0) ? inc.hosts[0] : "Unknown Host";
+        const host = (inc.hosts && inc.hosts.length > 0) ? inc.hosts[0] : "Host";
         
-        // Clean short incident title
-        let shortTitle = inc.title.replace(/\s*\([^)]*\)/g, ""); // remove (Execution -> ...)
-        shortTitle = shortTitle.replace(/on\s+[\w-]+/i, "").trim();
+        let cleanTitle = inc.title.replace(/\s*\([^)]*\)/g, "");
+        cleanTitle = cleanTitle.replace(/on\s+[\w-]+/i, "").trim();
 
         return `
           <div class="incident-item ${activeClass}" onclick="selectIncident('${inc.incident_id}')">
@@ -1436,7 +1924,7 @@
               <span class="item-id">${inc.incident_id}</span>
               <span class="metric-badge ${sevClass}">${inc.severity}</span>
             </div>
-            <div class="item-title">${escapeHtml(shortTitle)}</div>
+            <div class="item-title">${escapeHtml(cleanTitle)}</div>
             <div class="item-meta">
               <span>🖥️ ${escapeHtml(host)}</span>
               <span>🚨 ${inc.alert_count} Alerts</span>
@@ -1465,28 +1953,38 @@
     }
 
     // -------------------------------------------------------------------------
-    // Active Incident Inspection (/incidents/{id}/path)
+    // Active Incident Inspection & 1-Minute Story Fetching
     // -------------------------------------------------------------------------
     async function selectIncident(id) {
       activeIncidentId = id;
-      
-      // Update sidebar highlight
+
       document.querySelectorAll(".incident-item").forEach(el => {
         el.classList.toggle("active", el.querySelector(".item-id")?.textContent === id);
       });
 
       try {
-        const res = await fetch(`/incidents/${id}/path`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        activeIncidentData = await res.json();
-        renderActiveIncident(activeIncidentData);
+        // Fetch graph, timeline, and reachability
+        const pathRes = await fetch(`/incidents/${id}/path`);
+        if (!pathRes.ok) throw new Error(`HTTP ${pathRes.status}`);
+        activeIncidentData = await pathRes.json();
+        
+        // Fetch 1-Minute Attack Story breakdown
+        const storyRes = await fetch(`/api/incidents/${id}/story`);
+        let storyData = null;
+        if (storyRes.ok) {
+          storyData = await storyRes.json();
+        }
+
+        renderActiveIncident(activeIncidentData, storyData);
+        
+        // Pre-fetch report for Report Tab
+        loadIncidentReport(id);
       } catch (err) {
-        console.error("Failed to load incident path:", err);
+        console.error("Failed to load incident details:", err);
       }
     }
 
-    function renderActiveIncident(inc) {
-      // Clean short title for active header
+    function renderActiveIncident(inc, story) {
       const hostStr = (inc.hosts || []).join(", ") || "Host";
       let cleanTitle = inc.title.replace(/\s*\([^)]*\)/g, "").trim();
       document.getElementById("activeIncTitle").textContent = `${inc.incident_id}: ${cleanTitle}`;
@@ -1497,22 +1995,54 @@
         <span class="chip">Confidence: <strong>${inc.confidence}</strong></span>
       `;
 
-      document.getElementById("activeIncSummary").textContent = inc.summary || "No summary recorded.";
-
-      const chipsContainer = document.getElementById("activeIncChips");
-      chipsContainer.innerHTML = `
+      document.getElementById("activeIncChips").innerHTML = `
         <span class="chip">🖥️ Affected Host: <strong>${hostStr}</strong></span>
-        <span class="chip">👤 Correlated Users: <strong>${(inc.users || []).join(", ") || "N/A"}</strong></span>
+        <span class="chip">👤 Users: <strong>${(inc.users || []).join(", ") || "N/A"}</strong></span>
         <span class="chip">📅 Time Window: <strong>${inc.first_seen} → ${inc.last_seen}</strong></span>
       `;
 
-      // 1. Layout & Render Graph
+      // Render 1-Minute Executive Attack Story
+      if (story) {
+        document.getElementById("storyRiskScore").textContent = `Risk Score: ${story.risk_score || 0}/100`;
+        const qa = story.question_answers || {};
+        
+        document.getElementById("storyExecutiveSummary").textContent = qa.what_happened || inc.summary || "No attack story available.";
+        
+        document.getElementById("sqWhatHappened").textContent = qa.what_happened || "—";
+        const primaryHost = qa.entities_involved?.primary_host || hostStr;
+        const primaryUser = qa.entities_involved?.primary_user || (inc.users || [])[0] || "N/A";
+        document.getElementById("sqEntities").textContent = `Host: ${primaryHost} | User: ${primaryUser}`;
+        
+        document.getElementById("sqFirst").textContent = qa.what_happened_first || "—";
+        document.getElementById("sqNext").textContent = qa.what_happened_next || "—";
+        
+        const dets = (qa.triggered_detections || []).map(d => `${d.technique_id} (${d.title.split(':')[0]})`).join(", ");
+        document.getElementById("sqDetections").textContent = dets || `${inc.alert_count} alert(s) triggered`;
+        
+        document.getElementById("sqEvidence").textContent = qa.connecting_evidence || `${inc.timeline_count} timeline events`;
+        
+        const confInf = qa.confirmed_vs_inferred;
+        if (confInf) {
+          document.getElementById("sqConfirmedInferred").innerHTML = `
+            <div><strong>Confirmed:</strong> ${escapeHtml(confInf.confirmed)}</div>
+            <div style="margin-top:2px;"><strong>Inferred:</strong> ${escapeHtml(confInf.inferred)}</div>
+          `;
+        } else {
+          document.getElementById("sqConfirmedInferred").textContent = "—";
+        }
+
+        document.getElementById("sqOutcome").textContent = qa.known_outcome || "No lateral movement confirmed.";
+      } else {
+        document.getElementById("storyExecutiveSummary").textContent = inc.summary || "No executive story generated.";
+      }
+
+      // Render Attack Graph
       graphNodes = (inc.graph && inc.graph.nodes) ? inc.graph.nodes : [];
       graphEdges = (inc.graph && inc.graph.edges) ? inc.graph.edges : [];
       layoutHierarchicalGraph(graphNodes, graphEdges);
       fitGraphView();
 
-      // Pre-select the primary execution node for immediate inspection
+      // Pre-select primary execution node
       const initialNode = Object.values(nodeLayout).find(nl => 
         nl.node.node_type === "process" || nl.node.node_type === "process_group"
       ) || Object.values(nodeLayout)[0];
@@ -1524,15 +2054,23 @@
         drawGraph();
       }
 
-      // 2. Render Timeline
+      // Render Timeline
       renderTimeline(inc.timeline || []);
 
-      // 3. Render Potential Next Access
+      // Render Reach-Next
       renderReachNext(inc.reach_next || []);
     }
 
+    function toggleStoryDetails() {
+      const grid = document.getElementById("storyGrid");
+      const icon = document.getElementById("storyToggleIcon");
+      const isVisible = grid.style.display !== "none";
+      grid.style.display = isVisible ? "none" : "grid";
+      icon.textContent = isVisible ? "▼" : "▲";
+    }
+
     // -------------------------------------------------------------------------
-    // Clean Left-to-Right 5-Stage Attack Graph Layout
+    // 5-Stage Left-to-Right Attack Graph Layout
     // -------------------------------------------------------------------------
     const STAGE_CONFIG = [
       { id: 0, title: "1. AFFECTED HOST", color: "#0d9488", x: 120 },
@@ -1548,11 +2086,8 @@
 
       if (!nodes || nodes.length === 0) return;
 
-      // Filter out weakly associated user nodes from the main horizontal canvas progression
-      // User attribution is shown in incident header chips and inspector without cluttering lines.
       const relevantNodes = nodes.filter(n => n.node_type !== "user");
 
-      // Group repeated process instances visually (e.g. multiple powershell.exe instances)
       const processNameCounts = {};
       const processInstances = {};
 
@@ -1566,7 +2101,7 @@
       });
 
       const visualNodes = [];
-      const idMap = {}; // raw_node_id -> visual_node_id
+      const idMap = {};
 
       relevantNodes.forEach(n => {
         if (n.node_type === "process") {
@@ -1574,7 +2109,6 @@
           const count = processNameCounts[pName] || 1;
 
           if (count > 1 && !expandedProcessGroups.has(pName)) {
-            // Group collapsed: represent as a single clean group card
             const groupId = `group:process:${pName}`;
             idMap[n.id] = groupId;
 
@@ -1595,7 +2129,6 @@
               });
             }
           } else {
-            // Expanded or single instance
             idMap[n.id] = n.id;
             const pid = n.properties?.process_id ? ` (PID: ${n.properties.process_id})` : "";
             visualNodes.push({
@@ -1612,14 +2145,11 @@
         }
       });
 
-      // Deduplicate edges between visual nodes while retaining all evidence references
       const edgeMap = new Map();
       (edges || []).forEach(e => {
         const src = idMap[e.source] || e.source;
         const tgt = idMap[e.target] || e.target;
         if (!src || !tgt || src === tgt) return;
-
-        // Skip edges connected to filtered-out user nodes
         if (src.startsWith("user:") || tgt.startsWith("user:")) return;
 
         const key = `${src}->${tgt}:${e.is_inferred}`;
@@ -1633,75 +2163,27 @@
           });
         } else {
           const existing = edgeMap.get(key);
-          if (e.evidence_references) {
-            existing.evidence_references.push(...e.evidence_references);
-          }
+          if (e.evidence_references) existing.evidence_references.push(...e.evidence_references);
         }
       });
 
       edgeLayout = Array.from(edgeMap.values());
 
-      // 5 Logical Stages:
-      // Stage 0: Affected Host
-      // Stage 1: Execution (winword.exe, powershell.exe, cmd.exe)
-      // Stage 2: Persistence (Windows Run Key, Scheduled Tasks)
-      // Stage 3: File Activity & Supporting Network (unknown.exe, *.locked, outbound IP destinations)
-      // Stage 4: MITRE ATT&CK Detections (Alerts)
       const stages = [[], [], [], [], []];
 
       visualNodes.forEach(n => {
         let col = 1;
-        if (n.node_type === "host") {
-          col = 0;
-        } else if (n.node_type === "process" || n.node_type === "process_group") {
+        if (n.node_type === "host") col = 0;
+        else if (n.node_type === "process" || n.node_type === "process_group") {
           const name = (n.process_name || n.label || "").toLowerCase();
-          if (name.includes("unknown") || name.includes("ransom") || name.includes("crypt")) {
-            col = 3; // Impact payload binaries in Stage 3
-          } else {
-            col = 1; // Execution in Stage 1
-          }
-        } else if (n.node_type === "registry") {
-          col = 2; // Persistence in Stage 2
-        } else if (n.node_type === "file" || n.node_type === "network_dest") {
-          col = 3; // File activity and Supporting Network in Stage 3
-        } else if (n.node_type === "alert") {
-          col = 4; // MITRE ATT&CK Detections in Stage 4
-        }
+          if (name.includes("unknown") || name.includes("ransom") || name.includes("crypt")) col = 3;
+          else col = 1;
+        } else if (n.node_type === "registry") col = 2;
+        else if (n.node_type === "file" || n.node_type === "network_dest") col = 3;
+        else if (n.node_type === "alert") col = 4;
         stages[col].push(n);
       });
 
-      // Stage 1 Sorting: Parent processes (winword, office) on top, child processes (powershell) below
-      stages[1].sort((a, b) => {
-        const isParentA = (a.properties?.is_parent) || (a.process_name || "").toLowerCase().includes("winword") || (a.process_name || "").toLowerCase().includes("office");
-        const isParentB = (b.properties?.is_parent) || (b.process_name || "").toLowerCase().includes("winword") || (b.process_name || "").toLowerCase().includes("office");
-        if (isParentA && !isParentB) return -1;
-        if (!isParentA && isParentB) return 1;
-        return (a.label || "").localeCompare(b.label || "");
-      });
-
-      // Stage 3 Sorting: Payload binary (unknown.exe), then encrypted files (*.locked), then network destinations
-      stages[3].sort((a, b) => {
-        const getRank = (n) => {
-          if (n.node_type === "process" || n.node_type === "process_group") return 0;
-          if (n.node_type === "file") return 1;
-          return 2;
-        };
-        return getRank(a) - getRank(b);
-      });
-
-      // Stage 4 Sorting: ATT&CK Detections in natural kill-chain progression (Execution -> Persistence -> Impact)
-      stages[4].sort((a, b) => {
-        const getRank = (n) => {
-          const l = (n.label || "").toLowerCase();
-          if (l.includes("1059")) return 0; // T1059 Execution
-          if (l.includes("1547")) return 1; // T1547 Persistence
-          if (l.includes("1486")) return 2; // T1486 Impact
-          return 3;
-        };
-        return getRank(a) - getRank(b);
-      });
-
-      // Compute Canvas Coordinate Grid with generous vertical spacing
       const cardW = 158;
       const cardH = 42;
 
@@ -1735,27 +2217,24 @@
       }
       layoutHierarchicalGraph(graphNodes, graphEdges);
       drawGraph();
-
-      if (selectedNode) {
-        inspectNode(selectedNode);
-      }
+      if (selectedNode) inspectNode(selectedNode);
     }
 
     function getNodeColor(type) {
       switch (type) {
-        case "host": return "#0d9488"; // Teal
-        case "process": return "#7c3aed"; // Purple
-        case "process_group": return "#7c3aed"; // Purple
-        case "registry": return "#d97706"; // Amber
-        case "file": return "#e11d48"; // Rose
-        case "alert": return "#dc2626"; // Red
-        case "network_dest": return "#2563eb"; // Blue
+        case "host": return "#0d9488";
+        case "process": return "#7c3aed";
+        case "process_group": return "#7c3aed";
+        case "registry": return "#d97706";
+        case "file": return "#e11d48";
+        case "alert": return "#dc2626";
+        case "network_dest": return "#2563eb";
         default: return "#64748b";
       }
     }
 
     // -------------------------------------------------------------------------
-    // Canvas Event Listeners & Interaction
+    // Canvas Engine: Drawing & Smooth Navigation Controls
     // -------------------------------------------------------------------------
     function setupCanvas() {
       function resize() {
@@ -1812,7 +2291,6 @@
           return;
         }
 
-        // Hover Detection
         const pos = getCanvasMousePos(e);
         const node = findNodeAt(pos.x, pos.y);
         if (node !== hoveredNode) {
@@ -1822,9 +2300,8 @@
         }
       });
 
-      window.addEventListener("mouseup", (e) => {
+      window.addEventListener("mouseup", () => {
         if (draggedNode) {
-          // If barely moved, treat as a selection click
           if (dragDistance < 4) {
             inspectNode(draggedNode);
             selectedNode = draggedNode;
@@ -1834,22 +2311,18 @@
           draggedNode = null;
           return;
         }
-
         isPanning = false;
       });
 
-      // Small, controlled zoom increments centered precisely on cursor
       canvas.addEventListener("wheel", (e) => {
         e.preventDefault();
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        // Controlled 3.5% increment per tick (no wild jumps)
         const zoomDelta = e.deltaY < 0 ? 1.035 : 0.965;
         const newScale = Math.max(0.35, Math.min(2.2, transform.scale * zoomDelta));
 
-        // Keep cursor position invariant
         transform.x = mouseX - (mouseX - transform.x) * (newScale / transform.scale);
         transform.y = mouseY - (mouseY - transform.y) * (newScale / transform.scale);
         transform.scale = newScale;
@@ -1885,9 +2358,7 @@
         if (!p1 || !p2) continue;
 
         const dist = distToSegment({ x, y }, p1, p2);
-        if (dist <= 7) {
-          return edge;
-        }
+        if (dist <= 7) return edge;
       }
       return null;
     }
@@ -1947,9 +2418,10 @@
       drawGraph();
     }
 
-    // -------------------------------------------------------------------------
-    // Canvas Drawing Engine
-    // -------------------------------------------------------------------------
+    function resetGraphView() {
+      fitGraphView();
+    }
+
     function drawGraph() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1957,7 +2429,7 @@
         ctx.fillStyle = "#94a3b8";
         ctx.font = "13px -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("No attack graph entities for this incident.", canvas.width / 2, canvas.height / 2);
+        ctx.fillText("Insufficient evidence to construct an attack graph progression.", canvas.width / 2, canvas.height / 2);
         return;
       }
 
@@ -1965,9 +2437,8 @@
       ctx.translate(transform.x, transform.y);
       ctx.scale(transform.scale, transform.scale);
 
-      // Draw Stage Column Guideline Tracks & Header Titles directly on Canvas
+      // Draw Guideline Tracks & Header Titles
       STAGE_CONFIG.forEach(stage => {
-        // Vertical guideline line
         ctx.beginPath();
         ctx.moveTo(stage.x, 48);
         ctx.lineTo(stage.x, 420);
@@ -1975,7 +2446,6 @@
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Stage header badge
         ctx.fillStyle = stage.color;
         ctx.beginPath();
         ctx.arc(stage.x - 42, 28, 4, 0, Math.PI * 2);
@@ -1987,7 +2457,7 @@
         ctx.fillText(stage.title, stage.x - 32, 32);
       });
 
-      // Draw Directed Edges with Perpendicular Label Offsets
+      // Draw Directed Edges
       edgeLayout.forEach((edge, edgeIdx) => {
         const p1 = nodeLayout[edge.source];
         const p2 = nodeLayout[edge.target];
@@ -2011,7 +2481,7 @@
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Directed Arrowhead at target card boundary
+        // Directed Arrowhead
         const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
         const arrowDist = (p2.w / 2) + 2;
         const ax = p2.x - Math.cos(angle) * arrowDist;
@@ -2025,14 +2495,13 @@
         ctx.closePath();
         ctx.fill();
 
-        // Calculate Non-overlapping Label Position using Perpendicular Normal
+        // Edge Label with Non-overlapping Offset
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
         const dist = Math.hypot(dx, dy) || 1;
         const perpX = -dy / dist;
         const perpY = dx / dist;
 
-        // Alternate offset to prevent collisions between parallel lines
         const offsetDist = ((edgeIdx % 3) - 1) * 12;
         const mx = (p1.x + p2.x) / 2 + perpX * offsetDist;
         const my = (p1.y + p2.y) / 2 + perpY * offsetDist;
@@ -2065,7 +2534,6 @@
         const x = nl.x - nl.w / 2;
         const y = nl.y - nl.h / 2;
 
-        // Card Container
         ctx.beginPath();
         roundRect(ctx, x, y, nl.w, nl.h, 5);
         ctx.fillStyle = "#ffffff";
@@ -2081,21 +2549,17 @@
         ctx.fillStyle = nl.color;
         ctx.fill();
 
-        // Node Title
+        // Title
         ctx.fillStyle = "#0f172a";
         ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
         ctx.textAlign = "left";
         
         let label = node.label || node.id;
-        if (node.node_type === "network_dest") {
-          label = `Dest: ${node.properties?.destination || label}`;
-        }
-        if (label.length > 17) {
-          label = label.substring(0, 15) + "…";
-        }
+        if (node.node_type === "network_dest") label = `Dest: ${node.properties?.destination || label}`;
+        if (label.length > 17) label = label.substring(0, 15) + "…";
         ctx.fillText(label, x + 10, y + 17);
 
-        // Subtitle (Entity Type & Supporting Network Indicator)
+        // Subtitle
         ctx.fillStyle = "#64748b";
         ctx.font = "9px -apple-system, sans-serif";
         let subtitle = node.node_type.toUpperCase();
@@ -2178,34 +2642,31 @@
           <div class="prop-row">
             <div class="prop-key">Network Classification</div>
             <div class="prop-val" style="background:#eff6ff; color:#1d4ed8; font-weight:600;">
-              Supporting Network Activity (Observed Outbound)
+              Supporting Network (Observed Outbound)
             </div>
           </div>
-          <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">
-            Note: Network telemetry records outbound connectivity from this host. It does not establish attacker command-and-control or confirmed target compromise.
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">
+            Note: Telemetry records outbound connectivity from this host. It does not establish attacker C2 or confirmed target compromise.
           </div>
         `;
       }
 
       if (node.node_type === "process_group") {
         html += `
-          <div style="margin-top:10px; margin-bottom:10px;">
-            <button class="btn btn-primary" style="width:100%; font-size:11px;" onclick="toggleProcessGroup('${node.process_name}')">
+          <div style="margin-top:6px; margin-bottom:6px;">
+            <button class="btn btn-primary btn-sm" style="width:100%;" onclick="toggleProcessGroup('${node.process_name}')">
               Expand All ${node.count} PIDs
             </button>
           </div>
-          <div style="font-weight:600; margin-top:12px; margin-bottom:6px; font-size:11px;">Grouped Process Instances</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">
-            Telemetry reports ${node.count} distinct instances with individual PIDs:
-          </div>
-          <div class="prop-val" style="margin-bottom:8px;">
-            ${(node.instances || []).map(i => `PID: ${i.properties?.process_id || 'N/A'}`).join(', ')}
+          <div class="prop-row">
+            <div class="prop-key">Grouped Process Instances (${node.count})</div>
+            <div class="prop-val">${(node.instances || []).map(i => `PID: ${i.properties?.process_id || 'N/A'}`).join(', ')}</div>
           </div>
         `;
       } else if (node.can_collapse) {
         html += `
-          <div style="margin-top:10px; margin-bottom:10px;">
-            <button class="btn btn-outline" style="width:100%; font-size:11px;" onclick="toggleProcessGroup('${node.process_name}')">
+          <div style="margin-top:6px; margin-bottom:6px;">
+            <button class="btn btn-outline btn-sm" style="width:100%;" onclick="toggleProcessGroup('${node.process_name}')">
               Collapse Group
             </button>
           </div>
@@ -2213,7 +2674,7 @@
       }
 
       if (node.properties) {
-        html += `<div style="font-weight:600; margin-top:12px; margin-bottom:6px; font-size:11px;">Telemetry Properties</div>`;
+        html += `<div style="font-weight:700; margin-top:8px; margin-bottom:4px; font-size:11px; color:var(--text-subtle);">TELEMETRY PROPERTIES</div>`;
         for (const [k, v] of Object.entries(node.properties)) {
           html += `
             <div class="prop-row">
@@ -2253,11 +2714,11 @@
       `;
 
       if (edge.evidence_references && edge.evidence_references.length > 0) {
-        html += `<div style="font-weight:600; margin-top:12px; margin-bottom:6px; font-size:11px;">Supporting Evidence Records (${edge.evidence_references.length})</div>`;
+        html += `<div style="font-weight:700; margin-top:8px; margin-bottom:4px; font-size:11px; color:var(--text-subtle);">SUPPORTING EVIDENCE RECORDS (${edge.evidence_references.length})</div>`;
         edge.evidence_references.forEach(ev => {
           html += `
             <div style="margin-bottom:6px;">
-              <button class="btn btn-outline" style="width:100%; font-size:11px;" onclick="openEvidenceModal('${ev.event_id}')">
+              <button class="btn btn-outline btn-sm" style="width:100%;" onclick="openEvidenceModal('${ev.event_id}')">
                 🔍 Seek Byte Offset: ${ev.byte_offset}
               </button>
             </div>
@@ -2301,7 +2762,7 @@
             </td>
             <td>
               ${ev.event_id ? `
-                <button class="btn btn-outline" style="font-size:11px; padding:3px 8px;" onclick="openEvidenceModal('${ev.event_id}')">
+                <button class="btn btn-outline btn-sm" onclick="openEvidenceModal('${ev.event_id}')">
                   🔍 Evidence
                 </button>
               ` : '—'}
@@ -2312,15 +2773,15 @@
     }
 
     // -------------------------------------------------------------------------
-    // Potential Next Access (Rewritten Reach-Next with 4 Strict Statuses)
+    // Potential Next Access (Strict Reachability with Fallback)
     // -------------------------------------------------------------------------
     function renderReachNext(targets) {
       const container = document.getElementById("reachGrid");
       if (!targets || targets.length === 0) {
         container.innerHTML = `
-          <div class="empty-state" style="grid-column: 1 / -1; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px; padding:24px;">
-            <div style="font-size:14px; font-weight:600; color:var(--text-main); margin-bottom:6px;">No confirmed next system</div>
-            <div style="color:var(--text-muted); font-size:12px;">The available logs do not show successful remote access to another internal host.</div>
+          <div class="empty-state" style="grid-column: 1 / -1; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px; padding:24px; text-align:center;">
+            <div style="font-size:13px; font-weight:700; color:var(--text-main); margin-bottom:4px;">Insufficient Evidence to Determine Reachability</div>
+            <div style="color:var(--text-muted); font-size:12px;">The available telemetry does not support whether the attacker could access another internal system.</div>
           </div>
         `;
         return;
@@ -2329,7 +2790,7 @@
       container.innerHTML = targets.map(t => {
         let pillClass = "pill-outbound";
         let statusTitle = "Outbound connection observed";
-        let statusExplainer = "A host sent network traffic to a destination. This does not prove attacker access.";
+        let statusExplainer = "Host sent network traffic to a destination. This does not prove attacker control.";
         let accessConfirmedText = "No (Unconfirmed)";
         let accessConfirmedColor = "var(--text-muted)";
 
@@ -2345,18 +2806,13 @@
         } else if (vStatus === "authenticated_only" || rel === "successful_authentication") {
           pillClass = "pill-auth";
           statusTitle = "Authentication succeeded";
-          statusExplainer = "A successful remote authentication was recorded. Downstream execution remains unproven.";
+          statusExplainer = "Successful remote authentication was recorded. Execution remains unproven.";
           accessConfirmedText = "No (Authentication only)";
         } else if (vStatus === "potential_internal_connectivity" || rel === "potential_internal_connectivity") {
           pillClass = "pill-internal";
           statusTitle = "Internal connection observed";
-          statusExplainer = "Traffic between internal systems was recorded. This alone does not prove successful access.";
+          statusExplainer = "Traffic between internal systems was recorded. This alone does not prove compromise.";
           accessConfirmedText = "No (Traffic observed only)";
-        } else {
-          pillClass = "pill-outbound";
-          statusTitle = "Outbound connection observed";
-          statusExplainer = "A host sent network traffic to a destination. This does not prove attacker access.";
-          accessConfirmedText = "No (Observed telemetry only)";
         }
 
         return `
@@ -2382,13 +2838,13 @@
             </div>
 
             <div class="reach-field-row">
-              <span class="reach-field-label">What the Logs Actually Show</span>
+              <span class="reach-field-label">Evidence Grounding</span>
               <div class="reach-reasoning">${escapeHtml(t.reasoning)}</div>
             </div>
 
             ${(t.evidence_references && t.evidence_references.length > 0 && t.evidence_references[0].event_id) ? `
               <div>
-                <button class="btn btn-outline" style="font-size:11px; width:100%;" onclick="openEvidenceModal('${t.evidence_references[0].event_id}')">
+                <button class="btn btn-outline btn-sm" style="width:100%;" onclick="openEvidenceModal('${t.evidence_references[0].event_id}')">
                   🔍 Verify Telemetry Provenance (Offset: ${t.evidence_references[0].byte_offset})
                 </button>
               </div>
@@ -2396,6 +2852,65 @@
           </div>
         `;
       }).join("");
+    }
+
+    // -------------------------------------------------------------------------
+    // Plain-English Incident Report Generation (PRD Bonus B-2)
+    // -------------------------------------------------------------------------
+    async function loadIncidentReport(id) {
+      try {
+        const res = await fetch(`/api/incidents/${id}/report`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        activeReportData = await res.json();
+        renderIncidentReport(activeReportData);
+      } catch (err) {
+        document.getElementById("reportPaper").innerHTML = `<div style="color:var(--text-subtle);">Report unavailable: ${err.message}</div>`;
+      }
+    }
+
+    function renderIncidentReport(rep) {
+      const container = document.getElementById("reportPaper");
+      if (!rep || !rep.markdown_report) {
+        container.innerHTML = `<div style="color:var(--text-subtle);">Report unavailable for this incident.</div>`;
+        return;
+      }
+
+      // Convert simple markdown to readable HTML
+      let md = rep.markdown_report;
+      let html = md
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+        .replace(/^---$/gim, '<hr style="border:0; border-top:1px solid var(--border-color); margin:16px 0;">')
+        .replace(/^\- (.*$)/gim, '<li>$1</li>')
+        .replace(/\n\n/gim, '</p><p>')
+        .replace(/\n/gim, '<br>');
+
+      container.innerHTML = `<p>${html}</p>`;
+    }
+
+    function copyReportMarkdown() {
+      if (!activeReportData || !activeReportData.markdown_report) return;
+      navigator.clipboard.writeText(activeReportData.markdown_report).then(() => {
+        alert("Report copied to clipboard as Markdown!");
+      }).catch(err => {
+        alert(`Failed to copy: ${err.message}`);
+      });
+    }
+
+    function downloadReportMarkdown() {
+      if (!activeReportData || !activeReportData.markdown_report) return;
+      const blob = new Blob([activeReportData.markdown_report], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `CyberTrace_Report_${activeReportData.incident_id || 'INC'}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
     // -------------------------------------------------------------------------
@@ -2432,7 +2947,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // Tab Switching
+    // Viewport Tab Switching
     // -------------------------------------------------------------------------
     function switchTab(tabId) {
       document.querySelectorAll(".tab-item").forEach(btn => {

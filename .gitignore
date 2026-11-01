@@ -12,4 +12,5 @@ data/uploads/*
 !data/uploads/.gitkeep
 firex-10G.log
 *.log
+scratch/
 
