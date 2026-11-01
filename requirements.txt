@@ -8,7 +8,7 @@ h11==0.16.0
 idna==3.20
 Jinja2==3.1.6
 MarkupSafe==3.0.4
-networkx==3.7
+networkx>=3.2
 opentelemetry-api==1.45.2
 psutil==7.2.2
 pyarrow==26.0.0
@@ -22,3 +22,4 @@ uvicorn==0.54.0
 httpx==0.28.1
 python-multipart==0.0.33
 pytest>=8.0.0
+pytz>=2024.1

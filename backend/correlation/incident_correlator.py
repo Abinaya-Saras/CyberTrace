@@ -114,8 +114,12 @@ class IncidentCorrelator:
         for (host, _), bf_alerts in external_bf_clusters.items():
             incident_clusters.append(bf_alerts)
 
-        # Add endpoint intrusion clusters
-        for host, ep_alerts in endpoint_clusters.items():
+        # Add endpoint intrusion clusters (prioritizing execution intensity)
+        sorted_endpoints = sorted(
+            endpoint_clusters.items(),
+            key=lambda item: (-sum(1 for x in item[1] if x.rule_id == "RULE-002"), item[0]),
+        )
+        for host, ep_alerts in sorted_endpoints:
             incident_clusters.append(ep_alerts)
 
         # Step 2: Build Incidents with Graph, Timeline, and Reach-Next
@@ -145,7 +149,6 @@ class IncidentCorrelator:
             last_seen = max(a.last_seen for a in cluster)
 
             # Query supplementary telemetry for the host if parquet path is available
-            # (e.g. outbound network connections initiated by powershell on this host)
             supplementary_network: list[dict[str, Any]] = []
             rule_ids = {a.rule_id for a in cluster}
             is_bf_only = rule_ids == {"RULE-001"}
@@ -215,14 +218,25 @@ class IncidentCorrelator:
                     f"Zero successful authentications occurred from attacker IPs; target asset remains uncompromised."
                 )
             elif "RULE-002" in rule_ids and "RULE-004" in rule_ids and "RULE-005" in rule_ids:
-                title = f"Multi-Stage Suspicious Activity Cluster on {primary_host} (Execution -> Persistence -> File Renames)"
-                summary = (
-                    f"Multi-stage activity cluster observed on {primary_host}: Office spawned PowerShell "
-                    f"(Exploitation), PowerShell modified autorun registry keys (Installation), and unknown.exe "
-                    f"executed file renames to .locked (Actions on Objectives). Note: Causal linkage between "
-                    f"PowerShell and unknown.exe is not established by process ancestry telemetry; relationship "
-                    f"is an inferred temporal sequence on the same host."
-                )
+                if "RULE-003" in rule_ids:
+                    title = f"Multi-Stage Suspicious Activity Cluster on {primary_host} (Execution -> Persistence -> Outbound Network -> File Renames)"
+                    summary = (
+                        f"Multi-stage activity cluster observed on {primary_host}: Office spawned PowerShell "
+                        f"(Exploitation), PowerShell modified autorun registry keys (Installation), outbound "
+                        f"network connections were observed to reserved documentation IPs (Command and Control), "
+                        f"and unknown.exe executed file renames to .locked (Actions on Objectives). Note: Causal "
+                        f"linkage between PowerShell and unknown.exe is not established by process ancestry "
+                        f"telemetry; relationship is an inferred temporal sequence on the same host."
+                    )
+                else:
+                    title = f"Multi-Stage Suspicious Activity Cluster on {primary_host} (Execution -> Persistence -> File Renames)"
+                    summary = (
+                        f"Multi-stage activity cluster observed on {primary_host}: Office spawned PowerShell "
+                        f"(Exploitation), PowerShell modified autorun registry keys (Installation), and unknown.exe "
+                        f"executed file renames to .locked (Actions on Objectives). Note: Causal linkage between "
+                        f"PowerShell and unknown.exe is not established by process ancestry telemetry; relationship "
+                        f"is an inferred temporal sequence on the same host."
+                    )
             elif "RULE-004" in rule_ids and "RULE-005" in rule_ids:
                 title = f"Potential Attack Sequence on {primary_host} (Persistence -> File Renames)"
                 summary = (

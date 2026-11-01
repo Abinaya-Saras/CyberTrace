@@ -122,6 +122,14 @@ class Incident:
     reach_next: list[ReachNextAsset] = field(default_factory=list)
     summary: str = ""
 
+    @property
+    def detection_rules(self) -> list[str]:
+        return sorted(list({a.get("rule_id") for a in self.alerts if a.get("rule_id")}))
+
+    @property
+    def mitre_techniques(self) -> list[str]:
+        return sorted(list({a.get("mitre_technique_id") for a in self.alerts if a.get("mitre_technique_id")}))
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "incident_id": self.incident_id,
@@ -132,6 +140,10 @@ class Incident:
             "last_seen": self.last_seen,
             "hosts": self.hosts,
             "users": self.users,
+            "alert_count": len(self.alerts),
+            "timeline_count": len(self.timeline),
+            "detection_rules": self.detection_rules,
+            "mitre_techniques": self.mitre_techniques,
             "alert_ids": self.alert_ids,
             "alerts": self.alerts,
             "timeline": [t.to_dict() for t in self.timeline],

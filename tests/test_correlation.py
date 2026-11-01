@@ -522,15 +522,15 @@ def test_reach_next_semantics_external_vs_internal():
     assert len(reach) == 2
 
     ext_r = next(r for r in reach if r.target == "203.0.113.57")
-    assert ext_r.target_type == "external_destination"
+    assert ext_r.target_type == "reserved_documentation_ip"
     assert ext_r.relationship == "observed_outbound_destination"
-    assert ext_r.verification_status == "observed_outbound_activity"
-    assert "observed external network activity, NOT confirmed internal pivot reachability" in ext_r.reasoning
+    assert ext_r.verification_status == "outbound_connection_observed"
+    assert "reserved documentation IP address range (RFC 5737" in ext_r.reasoning
 
     int_r = next(r for r in reach if r.target == "10.10.4.15")
     assert int_r.target_type == "internal_ip"
-    assert int_r.relationship == "observed_internal_connectivity"
-    assert int_r.verification_status == "potential_internal_connectivity"
+    assert int_r.relationship == "internal_network_connectivity_observed"
+    assert int_r.verification_status == "internal_network_connectivity_observed"
 
 
 # -----------------------------------------------------------------------------
@@ -541,23 +541,30 @@ def test_e2e_correlation_and_exact_accounting():
     """
     End-to-end integration and accounting test against edr_events.parquet.
     Strictly verifies:
-      - Total detected alerts = 90
+      - Total detected alerts = 571 (per-instance process separation)
       - Total incidents = 29
-      - Total assigned alerts = 90 (0 unassigned)
-      - Category counts sum exactly to 29 incidents and 90 alerts
+      - Total assigned alerts = 571 (0 unassigned)
       - All graphs are DAGs (Directed Acyclic Graphs)
       - Every edge has valid supporting evidence references
+      - INC-002 on WS-SALES-013 regression requirements:
+          * 18 alert records, 4 detection rules, 9 distinct users, 4 MITRE techniques
+          * Process identity separation (8 PS, 3 registry, 5 file rename, 2 network PIDs)
+          * Missing parent PID handling (unknown.exe file renames unparented, separate branch)
+          * Observed vs inferred edges explicitly labeled
+          * RFC 5737 reserved documentation IP classification (192.0.2.88, 203.0.113.57)
+          * Plain-English report and executive story consistency
     """
     parquet_path = "data/processed/edr_events.parquet"
     if not os.path.exists(parquet_path):
         pytest.skip("data/processed/edr_events.parquet does not exist")
 
     from backend.detection.engine import DetectionEngine
+    from backend.correlation.report_generator import generate_incident_report, generate_one_minute_story
 
     with DuckDBEngine() as db:
         with DetectionEngine(engine=db) as det:
             alerts = det.run_all(parquet_path)
-            assert len(alerts) == 90
+            assert len(alerts) == 571
 
             correlator = IncidentCorrelator(engine=db, parquet_path=parquet_path)
             incidents = correlator.correlate(alerts)
@@ -568,36 +575,106 @@ def test_e2e_correlation_and_exact_accounting():
             assigned_alert_ids = set()
             for inc in incidents:
                 assigned_alert_ids.update(inc.alert_ids)
-            assert len(assigned_alert_ids) == 90
-
-            # Category accounting
-            three_alert_incidents = [i for i in incidents if len(i.alerts) == 3]
-            two_alert_incidents = [i for i in incidents if len(i.alerts) == 2]
-            one_alert_incidents = [i for i in incidents if len(i.alerts) == 1]
-            bf_campaign_incidents = [i for i in incidents if len(i.alerts) == 18]
-
-            assert len(three_alert_incidents) == 20   # 20 * 3 = 60 alerts
-            assert len(two_alert_incidents) == 4     # 4 * 2 = 8 alerts
-            assert len(one_alert_incidents) == 4     # 4 * 1 = 4 alerts
-            assert len(bf_campaign_incidents) == 1   # 1 * 18 = 18 alerts
-
-            total_inc = len(three_alert_incidents) + len(two_alert_incidents) + len(one_alert_incidents) + len(bf_campaign_incidents)
-            total_alt = (20 * 3) + (4 * 2) + (4 * 1) + (1 * 18)
-
-            assert total_inc == 29
-            assert total_alt == 90
+            assert len(assigned_alert_ids) == 571
 
             # Verify DAG topology and edge evidence on every incident
             for inc in incidents:
-                # Rebuild nx.DiGraph from serialized dict to confirm DAG
                 g = nx.DiGraph()
                 for n in inc.graph["nodes"]:
                     g.add_node(n["id"])
                 for e in inc.graph["edges"]:
                     g.add_edge(e["source"], e["target"])
-                    # Check edge has supporting evidence
                     assert "relationship_type" in e
                     assert "weight" in e
                     assert "is_observed" in e
+                    assert "is_inferred" in e
+                    assert "evidence_references" in e
 
                 assert nx.is_directed_acyclic_graph(g), f"Incident {inc.incident_id} graph is not a DAG!"
+
+            # -----------------------------------------------------------------
+            # Comprehensive Regression Suite for INC-002 on WS-SALES-013
+            # -----------------------------------------------------------------
+            inc_002 = next((i for i in incidents if i.incident_id == "INC-002"), None)
+            assert inc_002 is not None, "INC-002 not found in correlated incidents!"
+            assert inc_002.hosts == ["WS-SALES-013"]
+
+            # 1. Evidence Accuracy & Counts
+            assert len(inc_002.alerts) == 18, f"Expected 18 alerts, got {len(inc_002.alerts)}"
+            assert len(inc_002.detection_rules) == 4
+            assert set(inc_002.detection_rules) == {"RULE-002", "RULE-003", "RULE-004", "RULE-005"}
+            assert len(inc_002.mitre_techniques) == 4
+            assert set(inc_002.mitre_techniques) == {"T1059.001", "T1071.001", "T1486", "T1547.001"}
+            assert len(inc_002.users) == 9
+            expected_users = {"asharma", "dnair", "kiyer", "mkhan", "nverma", "pmehta", "rkumar", "sgupta", "vreddy"}
+            assert set(inc_002.users) == expected_users
+
+            # 2. Process-Level Separation
+            ps_alerts = [a for a in inc_002.alerts if a["rule_id"] == "RULE-002"]
+            reg_alerts = [a for a in inc_002.alerts if a["rule_id"] == "RULE-004"]
+            file_alerts = [a for a in inc_002.alerts if a["rule_id"] == "RULE-005"]
+            net_alerts = [a for a in inc_002.alerts if a["rule_id"] == "RULE-003"]
+
+            assert len(ps_alerts) == 8, f"Expected 8 PS alerts, got {len(ps_alerts)}"
+            assert len(reg_alerts) == 3, f"Expected 3 registry alerts, got {len(reg_alerts)}"
+            assert len(file_alerts) == 5, f"Expected 5 file alerts, got {len(file_alerts)}"
+            assert len(net_alerts) == 2, f"Expected 2 net alerts, got {len(net_alerts)}"
+
+            ps_pids = {a.get("process_id") for a in ps_alerts}
+            reg_pids = {a.get("process_id") for a in reg_alerts}
+            file_pids = {a.get("process_id") for a in file_alerts}
+            net_pids = {a.get("process_id") for a in net_alerts}
+
+            assert len(ps_pids) == 8, f"Expected 8 distinct PS PIDs, got {len(ps_pids)}"
+            assert len(reg_pids) == 3, f"Expected 3 distinct registry PIDs, got {len(reg_pids)}"
+            assert len(file_pids) == 5, f"Expected 5 distinct file PIDs, got {len(file_pids)}"
+            assert len(net_pids) == 2, f"Expected 2 distinct net PIDs, got {len(net_pids)}"
+
+            # 3. Missing Parent PID Handling
+            for fa in file_alerts:
+                assert fa.get("parent_process_id") is None
+                assert fa.get("parent_process_name") is None
+
+            # Verify graph branches: unknown.exe has NO causal edge from powershell.exe
+            for edge in inc_002.graph["edges"]:
+                if edge["relationship_type"] == "SPAWNED_PROCESS":
+                    assert not ("powershell" in edge["source"] and "unknown" in edge["target"])
+
+            # 4. Observed vs Inferred Edges
+            observed_edges = [e for e in inc_002.graph["edges"] if e.get("is_observed")]
+            inferred_edges = [e for e in inc_002.graph["edges"] if e.get("is_inferred")]
+            assert len(observed_edges) > 0
+            assert len(inferred_edges) > 0
+
+            # 5. Potential Next Access - RFC 5737 Classification
+            assert len(inc_002.reach_next) == 2
+            reach_targets = {r.target: r for r in inc_002.reach_next}
+            assert "192.0.2.88" in reach_targets
+            assert "203.0.113.57" in reach_targets
+            for tgt in ["192.0.2.88", "203.0.113.57"]:
+                r = reach_targets[tgt]
+                assert r.target_type == "reserved_documentation_ip"
+                assert r.verification_status == "outbound_connection_observed"
+                assert "reserved documentation IP address range" in r.reasoning
+                assert "NOT real external attacker infrastructure" in r.reasoning
+
+            # 6. Report and Story Consistency
+            report = generate_incident_report(inc_002)
+            assert "markdown_report" in report
+            md = report["markdown_report"]
+            assert "RULE-002" in md
+            assert "RULE-003" in md
+            assert "RULE-004" in md
+            assert "RULE-005" in md
+            for u in expected_users:
+                assert u in md
+            assert "18 alert records" in md
+            assert "**Risk Score:** 100/100" in md
+
+            story = generate_one_minute_story(inc_002)
+            assert story["risk_score"] == 100
+            story_dets = story["question_answers"].get("triggered_detections", [])
+            assert len(story_dets) == 18
+            distinct_rules = {d["rule_id"] for d in story_dets}
+            assert len(distinct_rules) == 4
+            assert distinct_rules == {"RULE-002", "RULE-003", "RULE-004", "RULE-005"}

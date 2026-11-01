@@ -664,17 +664,18 @@ def test_e2e_edr_parquet_benchmark():
     with DetectionEngine() as engine:
         alerts = engine.run_all(parquet_path)
 
-        # Verified alert count on 10,000-event synthetic dataset
-        assert len(alerts) == 90
+        # Verified alert count on synthetic dataset with distinct process instance separation
+        assert len(alerts) == 571
 
         rule_counts = {}
         for a in alerts:
             rule_counts[a.rule_id] = rule_counts.get(a.rule_id, 0) + 1
 
         assert rule_counts.get("RULE-001") == 18
-        assert rule_counts.get("RULE-002") == 23
-        assert rule_counts.get("RULE-004") == 23
-        assert rule_counts.get("RULE-005") == 26
+        assert rule_counts.get("RULE-002") == 100
+        assert rule_counts.get("RULE-003") == 269
+        assert rule_counts.get("RULE-004") == 89
+        assert rule_counts.get("RULE-005") == 95
 
         # 100% of generated alerts must have valid MITRE ATT&CK & Kill Chain mappings
         for a in alerts:

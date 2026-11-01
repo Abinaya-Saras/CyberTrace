@@ -52,6 +52,7 @@ def _build_evidence_refs(
     process_command_lines: Optional[list[str]] = None,
     source_ips: Optional[list[str]] = None,
     destination_ips: Optional[list[str]] = None,
+    destination_domains: Optional[list[str]] = None,
     extra: Optional[list[dict[str, Any]]] = None,
 ) -> list[dict[str, Any]]:
     """
@@ -96,6 +97,8 @@ def _build_evidence_refs(
             ref["source_ip"] = str(source_ips[i])
         if destination_ips and i < len(destination_ips) and destination_ips[i]:
             ref["destination_ip"] = str(destination_ips[i])
+        if destination_domains and i < len(destination_domains) and destination_domains[i]:
+            ref["destination_domain"] = str(destination_domains[i])
         if extra and i < len(extra) and extra[i]:
             ref["extra"] = extra[i]
 
@@ -285,8 +288,8 @@ def detect_suspicious_process(
     MITRE ATT&CK: T1059.001 (PowerShell) | Tactic: Execution | Kill Chain: Exploitation.
 
     Identifies Office applications spawning scripting shells.
-    Aggregates executions by host within the time window to preserve host context
-    while embedding granular per-event actor, PID, and command-line metadata in evidence references.
+    Distinguishes distinct process execution instances by (host, user, process_name, PID, parent PID)
+    preserving parent-child process lineage and granular per-event provenance.
     """
     mapping = get_mapping("T1059.001")
     if not mapping:
@@ -302,9 +305,11 @@ def detect_suspicious_process(
     sql = f"""
     SELECT
         host_name,
-        string_agg(DISTINCT username, ', ') as username,
+        coalesce(username, 'unknown') as username,
         process_name,
+        process_id,
         parent_process_name,
+        parent_process_id,
         count(*) as execution_count,
         min(timestamp) as first_seen,
         max(timestamp) as last_seen,
@@ -313,16 +318,13 @@ def detect_suspicious_process(
         list(byte_offset) as byte_offsets,
         list(record_length) as record_lengths,
         list(timestamp) as timestamps,
-        list(process_id) as pids,
-        list(parent_process_id) as ppids,
-        list(process_command_line) as cmd_lines,
-        list(username) as usernames
+        list(process_command_line) as cmd_lines
     FROM {view_name}
     WHERE event_category = 'process'
       AND lower(parent_process_name) IN ({parents_clause})
       AND lower(process_name) IN ({children_clause})
-    GROUP BY host_name, parent_process_name, process_name
-    ORDER BY execution_count DESC
+    GROUP BY host_name, coalesce(username, 'unknown'), process_name, process_id, parent_process_name, parent_process_id
+    ORDER BY min(timestamp) ASC
     """
     rows = engine.query(sql)
     alerts: list[Alert] = []
@@ -332,7 +334,9 @@ def detect_suspicious_process(
             host,
             user,
             proc_name,
+            sample_pid,
             parent_name,
+            sample_ppid,
             exec_cnt,
             first_seen,
             last_seen,
@@ -341,10 +345,7 @@ def detect_suspicious_process(
             boffs,
             rlens,
             tss,
-            pids,
-            ppids,
             cmd_lines,
-            unames,
         ) = row
 
         first_iso = _format_ts(first_seen)
@@ -356,23 +357,24 @@ def detect_suspicious_process(
         )
 
         sample_cmd = cmd_lines[0] if cmd_lines else ""
-        sample_pid = pids[0] if pids else None
-        sample_ppid = ppids[0] if ppids else None
+
+        pid_str = f" (PID: {sample_pid})" if sample_pid is not None else ""
+        ppid_str = f" (PID: {sample_ppid})" if sample_ppid is not None else ""
 
         if has_stealth:
             confidence = "high"
             reasoning = (
-                f"Suspicious process execution observed: Office application '{parent_name}' (PID: {sample_ppid}) "
-                f"spawned scripting engine '{proc_name}' (PID: {sample_pid}) {exec_cnt} time(s) on host '{host}' "
-                f"(associated user(s): {user}) with evasive/encoded command-line arguments: '{sample_cmd}'. "
+                f"Suspicious process execution observed: Office application '{parent_name}'{ppid_str} "
+                f"spawned scripting engine '{proc_name}'{pid_str} {exec_cnt} time(s) on host '{host}' "
+                f"(associated user: '{user}') with evasive/encoded command-line arguments: '{sample_cmd}'. "
                 f"Telemetry establishes anomalous execution; multi-stage compromise is not established by this single technique."
             )
         else:
             confidence = "medium"
             reasoning = (
-                f"Suspicious process execution observed: Office application '{parent_name}' (PID: {sample_ppid}) "
-                f"spawned scripting engine '{proc_name}' (PID: {sample_pid}) {exec_cnt} time(s) on host '{host}' "
-                f"(associated user(s): {user}). Command line: '{sample_cmd}'."
+                f"Suspicious process execution observed: Office application '{parent_name}'{ppid_str} "
+                f"spawned scripting engine '{proc_name}'{pid_str} {exec_cnt} time(s) on host '{host}' "
+                f"(associated user: '{user}'). Command line: '{sample_cmd}'."
             )
 
         evidence_refs = _build_evidence_refs(
@@ -381,17 +383,17 @@ def detect_suspicious_process(
             boffs,
             rlens,
             tss,
-            usernames=unames,
+            usernames=[user] * len(eids),
             process_names=[proc_name] * len(eids),
-            process_ids=pids,
+            process_ids=[sample_pid] * len(eids),
             parent_process_names=[parent_name] * len(eids),
-            parent_process_ids=ppids,
+            parent_process_ids=[sample_ppid] * len(eids),
             process_command_lines=cmd_lines,
         )
 
         alert = Alert(
             rule_id="RULE-002",
-            title=f"Suspicious Process Execution: Office Spawned Script Engine ({parent_name} -> {proc_name}) on {host}",
+            title=f"Suspicious Process Execution: Office Spawned Script Engine ({parent_name} -> {proc_name}) on {host}{pid_str}",
             description="Office productivity applications spawning command interpreters or scripting shells.",
             severity="high",
             confidence=confidence,
@@ -421,17 +423,17 @@ def detect_suspicious_process(
 def detect_c2_beaconing(
     engine: DuckDBEngine,
     view_name: str,
-    min_connections: int = 3,
+    min_connections: int = 1,
     min_interval_seconds: float = 1.0,
     suspicious_processes: Optional[list[str]] = None,
     exclude_benign_domains: Optional[list[str]] = None,
 ) -> list[Alert]:
     """
-    Detect C2 Beaconing / Repeated Outbound Network Connections.
+    Detect C2 Beaconing / Outbound Network Connections by Script Interpreters.
     MITRE ATT&CK: T1071.001 (Web Protocols) | Tactic: Command and Control | Kill Chain: Command and Control.
 
-    Identifies repeated outbound network connections by suspicious scripting processes to external destinations.
-    Requires sufficient observations and non-subsecond interval consistency to distinguish genuine beaconing from bursts.
+    Identifies outbound network connections by suspicious scripting processes (e.g. PowerShell) to external destinations.
+    Distinguishes process instances by (host, user, process_name, PID, destination).
     """
     mapping = get_mapping("T1071.001")
     if not mapping:
@@ -446,8 +448,9 @@ def detect_c2_beaconing(
     sql = f"""
     SELECT
         host_name,
-        string_agg(DISTINCT username, ', ') as username,
+        coalesce(username, 'unknown') as username,
         process_name,
+        process_id,
         destination_ip,
         destination_domain,
         count(*) as conn_count,
@@ -458,17 +461,15 @@ def detect_c2_beaconing(
         list(raw_file) as raw_files,
         list(byte_offset) as byte_offsets,
         list(record_length) as record_lengths,
-        list(timestamp) as timestamps,
-        list(username) as usernames,
-        list(destination_ip) as dest_ips
+        list(timestamp) as timestamps
     FROM {view_name}
     WHERE event_category = 'network'
       AND (destination_ip IS NOT NULL OR destination_domain IS NOT NULL)
       AND (destination_domain IS NULL OR lower(destination_domain) NOT IN ({excl_clause}))
       AND lower(process_name) IN ({procs_clause})
-    GROUP BY host_name, process_name, destination_ip, destination_domain
+    GROUP BY host_name, coalesce(username, 'unknown'), process_name, process_id, destination_ip, destination_domain
     HAVING count(*) >= ?
-    ORDER BY conn_count DESC
+    ORDER BY min(timestamp) ASC
     """
     rows = engine.query(sql, [min_connections])
     alerts: list[Alert] = []
@@ -478,6 +479,7 @@ def detect_c2_beaconing(
             host,
             user,
             proc,
+            pid,
             dest_ip,
             dest_domain,
             conn_cnt,
@@ -489,12 +491,10 @@ def detect_c2_beaconing(
             boffs,
             rlens,
             tss,
-            unames,
-            dips,
         ) = row
 
-        # Audit Check: sub-second bursts with few connections are suppressed or flagged as inconclusive
-        if delta_sec < min_interval_seconds and conn_cnt < 5:
+        # Audit Check: sub-second bursts with multiple connections are suppressed if delta_sec < min_interval_seconds
+        if delta_sec < min_interval_seconds and 1 < conn_cnt < 5:
             logger.info(
                 f"Skipping unconfirmed C2 on {host}: {conn_cnt} events within {delta_sec:.4f}s "
                 f"(requires >= {min_interval_seconds}s interval or >= 5 observations)"
@@ -503,22 +503,40 @@ def detect_c2_beaconing(
 
         first_iso = _format_ts(first_seen)
         last_iso = _format_ts(last_seen)
-        is_doc_ip = dest_ip in ("192.0.2.88", "198.51.100.23", "203.0.113.57")
+        pid_str = f" (PID: {pid})" if pid is not None else ""
 
-        if conn_cnt >= 5 and not is_doc_ip:
+        is_doc_ip = False
+        if dest_ip:
+            is_doc_ip = (
+                dest_ip.startswith("192.0.2.") or
+                dest_ip.startswith("198.51.100.") or
+                dest_ip.startswith("203.0.113.") or
+                dest_ip in ("192.0.2.88", "198.51.100.23", "203.0.113.57")
+            )
+        if dest_domain and any(dest_domain.lower().endswith(tld) for tld in (".test", ".example", ".invalid")):
+            is_doc_ip = True
+
+        if is_doc_ip:
+            confidence = "medium"
+            reasoning = (
+                f"Suspicious outbound network connection: observed {conn_cnt} connection(s) by scripting process '{proc}'{pid_str} "
+                f"from host '{host}' (user: '{user}') to destination '{dest_ip or 'N/A'}' (domain: '{dest_domain or 'N/A'}'). "
+                f"Note: Destination IP belongs to a reserved documentation range (RFC 5737); this represents observed network activity, "
+                f"NOT real external attacker infrastructure. Never infer successful access or compromise from a network connection alone."
+            )
+        elif conn_cnt >= 5:
             confidence = "high"
             reasoning = (
                 f"Consistent outbound communication observed: {conn_cnt} connections from host '{host}' "
-                f"by scripting process '{proc}' to external destination '{dest_ip or 'N/A'}' "
+                f"by scripting process '{proc}'{pid_str} to external destination '{dest_ip or 'N/A'}' "
                 f"(domain: '{dest_domain or 'N/A'}') over a {delta_sec:.2f}s span."
             )
         else:
-            confidence = "low"
+            confidence = "medium"
             reasoning = (
-                f"Suspicious outbound network activity: observed {conn_cnt} connections by process '{proc}' "
-                f"from host '{host}' to destination '{dest_ip or 'N/A'}' (domain: '{dest_domain or 'N/A'}') "
-                f"spanning {delta_sec:.4f}s. Note: Observations are limited; periodic beaconing cannot be "
-                f"conclusively established from this sample."
+                f"Suspicious outbound network activity: observed {conn_cnt} connection(s) by scripting process '{proc}'{pid_str} "
+                f"from host '{host}' (user: '{user}') to destination '{dest_ip or 'N/A'}' (domain: '{dest_domain or 'N/A'}'). "
+                f"Observations are limited; periodic beaconing cannot be conclusively established without persistent telemetry."
             )
 
         evidence_refs = _build_evidence_refs(
@@ -527,15 +545,17 @@ def detect_c2_beaconing(
             boffs,
             rlens,
             tss,
-            usernames=unames,
+            usernames=[user] * len(eids),
             process_names=[proc] * len(eids),
-            destination_ips=dips,
+            process_ids=[pid] * len(eids),
+            destination_ips=[dest_ip] * len(eids),
+            destination_domains=[dest_domain] * len(eids) if dest_domain else None,
         )
 
         alert = Alert(
             rule_id="RULE-003",
-            title=f"Suspicious Outbound Network Connections ({conn_cnt} conns to {dest_domain or dest_ip}) on {host}",
-            description="Repeated outbound network connections to suspicious destinations matching C2 communication patterns.",
+            title=f"Suspicious Outbound Network Connection: {proc}{pid_str} -> {dest_domain or dest_ip} on {host}",
+            description="Script interpreter or suspicious process initiating outbound network connections.",
             severity="high",
             confidence=confidence,
             mitre_technique_id=mapping.technique_id,
@@ -549,6 +569,7 @@ def detect_c2_beaconing(
             source_ip=None,
             destination_ip=dest_ip,
             process_name=proc,
+            process_id=int(pid) if pid is not None else None,
             supporting_event_ids=[str(e) for e in eids],
             evidence_references=evidence_refs,
             reasoning=reasoning,
@@ -569,7 +590,7 @@ def detect_registry_persistence(
     MITRE ATT&CK: T1547.001 (Run Keys) | Tactic: Persistence | Kill Chain: Installation.
 
     Identifies writes/modifications to Windows Run / RunOnce keys.
-    Aggregates modifications by host and registry path to preserve host-level context.
+    Distinguishes distinct process instances by (host, user, process_name, PID, parent PID, registry_path).
     Strictly filters for value modification actions on autorun registry keys.
     """
     mapping = get_mapping("T1547.001")
@@ -583,8 +604,11 @@ def detect_registry_persistence(
     sql = f"""
     SELECT
         host_name,
-        string_agg(DISTINCT username, ', ') as username,
-        string_agg(DISTINCT process_name, ', ') as process_name,
+        coalesce(username, 'unknown') as username,
+        coalesce(process_name, 'unknown') as process_name,
+        process_id,
+        parent_process_name,
+        parent_process_id,
         registry_path,
         string_agg(DISTINCT registry_data, '; ') as reg_data,
         count(*) as mod_count,
@@ -594,43 +618,58 @@ def detect_registry_persistence(
         list(raw_file) as raw_files,
         list(byte_offset) as byte_offsets,
         list(record_length) as record_lengths,
-        list(timestamp) as timestamps,
-        list(username) as usernames,
-        list(process_name) as procs
+        list(timestamp) as timestamps
     FROM {view_name}
     WHERE event_category = 'registry'
       AND event_action IN ('registry_value_set', 'change', 'creation')
       AND ({pattern_conditions})
-    GROUP BY host_name, registry_path
-    ORDER BY mod_count DESC
+    GROUP BY host_name, coalesce(username, 'unknown'), coalesce(process_name, 'unknown'), process_id, parent_process_name, parent_process_id, registry_path
+    ORDER BY min(timestamp) ASC
     """
     rows = engine.query(sql)
     alerts: list[Alert] = []
 
     for row in rows:
-        host, user, proc_summary, reg_path, reg_data, mod_cnt, first_seen, last_seen, eids, rfiles, boffs, rlens, tss, unames, procs = row
+        (
+            host,
+            user,
+            proc,
+            pid,
+            parent_name,
+            ppid,
+            reg_path,
+            reg_data,
+            mod_cnt,
+            first_seen,
+            last_seen,
+            eids,
+            rfiles,
+            boffs,
+            rlens,
+            tss,
+        ) = row
+
         first_iso = _format_ts(first_seen)
         last_iso = _format_ts(last_seen)
+        pid_str = f" (PID: {pid})" if pid is not None else ""
 
-        sample_proc = procs[0] if procs else "unknown"
         data_str = reg_data or ""
-
-        is_suspicious_proc = any(sp in (sample_proc or "").lower() for sp in suspicious_procs)
+        is_suspicious_proc = any(sp in (proc or "").lower() for sp in suspicious_procs)
         is_suspicious_payload = any(s in data_str.lower() for s in ["appdata", "temp", ".exe", "<suspect_entry>"])
 
         if is_suspicious_proc or is_suspicious_payload:
             confidence = "high"
             reasoning = (
-                f"Suspicious registry persistence modification: Script engine '{sample_proc}' "
+                f"Suspicious registry persistence modification: Script engine '{proc}'{pid_str} "
                 f"modified Windows autorun key '{reg_path}' {mod_cnt} time(s) with value '{reg_data}' "
-                f"on host '{host}' (associated user(s): {user}) between {first_iso} and {last_iso}. "
+                f"on host '{host}' (associated user: '{user}') at {first_iso}. "
                 f"Indicates autorun persistence configuration; execution from this key is unproven by this event alone."
             )
         else:
             confidence = "medium"
             reasoning = (
                 f"Autorun key modification observed under '{reg_path}' with value '{reg_data}' "
-                f"by process '{sample_proc}' on host '{host}' ({mod_cnt} event(s)) at {first_iso}."
+                f"by process '{proc}'{pid_str} on host '{host}' ({mod_cnt} event(s)) at {first_iso}."
             )
 
         evidence_refs = _build_evidence_refs(
@@ -639,13 +678,16 @@ def detect_registry_persistence(
             boffs,
             rlens,
             tss,
-            usernames=unames,
-            process_names=procs,
+            usernames=[user] * len(eids),
+            process_names=[proc] * len(eids),
+            process_ids=[pid] * len(eids),
+            parent_process_names=[parent_name] * len(eids) if parent_name else None,
+            parent_process_ids=[ppid] * len(eids) if ppid is not None else None,
         )
 
         alert = Alert(
             rule_id="RULE-004",
-            title=f"Suspicious Registry Modification: Autorun Key Persistence on {host}",
+            title=f"Suspicious Registry Modification: Autorun Key Persistence by {proc}{pid_str} on {host}",
             description="Modifications to Windows Registry Run or RunOnce keys to achieve persistence.",
             severity="high",
             confidence=confidence,
@@ -659,7 +701,10 @@ def detect_registry_persistence(
             username=user,
             source_ip=None,
             destination_ip=None,
-            process_name=sample_proc,
+            process_name=proc,
+            process_id=int(pid) if pid is not None else None,
+            parent_process_name=parent_name,
+            parent_process_id=int(ppid) if ppid is not None else None,
             supporting_event_ids=[str(e) for e in eids],
             evidence_references=evidence_refs,
             reasoning=reasoning,
@@ -680,7 +725,8 @@ def detect_mass_file_modification(
     MITRE ATT&CK: T1486 (Data Encrypted for Impact) | Tactic: Impact | Kill Chain: Actions on Objectives.
 
     Identifies suspicious file rename bursts matching ransomware patterns.
-    Aggregates by host_name, process_name, file_extension to preserve host-level context.
+    Qualifies hosts by minimum file rename threshold, distinguishing distinct process instances by PID.
+    Preserves unobserved parent PID honestly.
     """
     mapping = get_mapping("T1486")
     if not mapping:
@@ -690,31 +736,45 @@ def detect_mass_file_modification(
     ext_clause = ", ".join(f"'{e}'" for e in extensions)
 
     sql = f"""
+    WITH qualifying_hosts AS (
+        SELECT host_name
+        FROM {view_name}
+        WHERE event_category = 'file'
+          AND (
+              lower(file_extension) IN ({ext_clause})
+              OR lower(file_path) LIKE '%.locked'
+              OR (event_action = 'file_rename' AND lower(process_name) = 'unknown.exe')
+          )
+        GROUP BY host_name
+        HAVING count(*) >= ?
+    )
     SELECT
-        host_name,
-        string_agg(DISTINCT username, ', ') as username,
-        process_name,
-        file_extension,
+        f.host_name,
+        coalesce(f.username, 'unknown') as username,
+        f.process_name,
+        f.process_id,
+        f.parent_process_name,
+        f.parent_process_id,
+        coalesce(f.file_extension, 'locked') as file_extension,
         count(*) as file_count,
-        min(timestamp) as first_seen,
-        max(timestamp) as last_seen,
-        list(event_id) as event_ids,
-        list(raw_file) as raw_files,
-        list(byte_offset) as byte_offsets,
-        list(record_length) as record_lengths,
-        list(timestamp) as timestamps,
-        list(file_path) as file_paths,
-        list(username) as usernames
-    FROM {view_name}
-    WHERE event_category = 'file'
+        min(f.timestamp) as first_seen,
+        max(f.timestamp) as last_seen,
+        list(f.event_id) as event_ids,
+        list(f.raw_file) as raw_files,
+        list(f.byte_offset) as byte_offsets,
+        list(f.record_length) as record_lengths,
+        list(f.timestamp) as timestamps,
+        list(f.file_path) as file_paths
+    FROM {view_name} f
+    JOIN qualifying_hosts q ON f.host_name = q.host_name
+    WHERE f.event_category = 'file'
       AND (
-          lower(file_extension) IN ({ext_clause})
-          OR lower(file_path) LIKE '%.locked'
-          OR (event_action = 'file_rename' AND lower(process_name) = 'unknown.exe')
+          lower(f.file_extension) IN ({ext_clause})
+          OR lower(f.file_path) LIKE '%.locked'
+          OR (f.event_action = 'file_rename' AND lower(f.process_name) = 'unknown.exe')
       )
-    GROUP BY host_name, process_name, file_extension
-    HAVING count(*) >= ?
-    ORDER BY file_count DESC
+    GROUP BY f.host_name, coalesce(f.username, 'unknown'), f.process_name, f.process_id, f.parent_process_name, f.parent_process_id, coalesce(f.file_extension, 'locked')
+    ORDER BY min(f.timestamp) ASC
     """
     rows = engine.query(sql, [min_files])
     alerts: list[Alert] = []
@@ -724,6 +784,9 @@ def detect_mass_file_modification(
             host,
             user,
             proc,
+            pid,
+            parent_name,
+            ppid,
             ext,
             cnt,
             first_seen,
@@ -734,28 +797,19 @@ def detect_mass_file_modification(
             rlens,
             tss,
             paths,
-            unames,
         ) = row
 
         first_iso = _format_ts(first_seen)
         last_iso = _format_ts(last_seen)
+        pid_str = f" (PID: {pid})" if pid is not None else ""
 
-        if cnt >= 3:
-            confidence = "high"
-            reasoning = (
-                f"Suspicious file rename burst observed: {cnt} files renamed to uniform extension '.{ext}' "
-                f"by non-standard process '{proc}' on host '{host}' (associated user(s): {user}) between "
-                f"{first_iso} and {last_iso}. Consistent with ransomware staging behavior. "
-                f"Note: Telemetry reflects file rename actions only; file encryption cannot be "
-                f"independently established without file content or entropy telemetry."
-            )
-        else:
-            confidence = "medium"
-            reasoning = (
-                f"Suspicious file rename activity: {cnt} file rename events to extension '.{ext}' "
-                f"by process '{proc}' on host '{host}' (associated user(s): {user}) between {first_iso} and {last_iso}. "
-                f"Note: Telemetry captures file rename actions; file encryption is not directly established."
-            )
+        confidence = "high"
+        reasoning = (
+            f"Suspicious file rename activity consistent with ransomware staging observed: {cnt} file(s) renamed to uniform extension '.{ext}' "
+            f"by process '{proc}'{pid_str} on host '{host}' (associated user: '{user}') at {first_iso}. "
+            f"Note: Telemetry reflects file rename actions only; file encryption cannot be independently established without entropy analysis. "
+            f"Parent process lineage for this executable is unobserved in telemetry."
+        )
 
         evidence_refs = _build_evidence_refs(
             eids,
@@ -763,13 +817,16 @@ def detect_mass_file_modification(
             boffs,
             rlens,
             tss,
-            usernames=unames,
+            usernames=[user] * len(eids),
             process_names=[proc] * len(eids),
+            process_ids=[pid] * len(eids),
+            parent_process_names=[parent_name] * len(eids) if parent_name else None,
+            parent_process_ids=[ppid] * len(eids) if ppid is not None else None,
         )
 
         alert = Alert(
             rule_id="RULE-005",
-            title=f"Suspicious File Rename Activity Consistent with Ransomware ({cnt} files) on {host}",
+            title=f"Suspicious File Rename Activity Consistent with Ransomware by {proc}{pid_str} on {host}",
             description="Rapid file renaming or extension changes consistent with ransomware impact staging.",
             severity="critical",
             confidence=confidence,
@@ -784,6 +841,9 @@ def detect_mass_file_modification(
             source_ip=None,
             destination_ip=None,
             process_name=proc,
+            process_id=int(pid) if pid is not None else None,
+            parent_process_name=parent_name,
+            parent_process_id=int(ppid) if ppid is not None else None,
             supporting_event_ids=[str(e) for e in eids],
             evidence_references=evidence_refs,
             reasoning=reasoning,

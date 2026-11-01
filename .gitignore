@@ -1,7 +1,17 @@
+
+# Python
 .venv/
+venv/
 __pycache__/
+*.py[cod]
 *.pyc
+
+# Environment and secrets
 .env
+.env.*
+!.env.example
+
+# Dataset files
 data/raw/*
 data/processed/*
 data/samples/*
@@ -10,7 +20,34 @@ data/uploads/*
 !data/processed/.gitkeep
 !data/samples/.gitkeep
 !data/uploads/.gitkeep
+
+# Large logs
 firex-10G.log
 *.log
-scratch/
 
+# Local dataset registry
+data/dataset_registry.json
+
+# Temporary files
+scratch/
+*.tmp
+*.temp
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Frontend dependencies/build
+node_modules/
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db

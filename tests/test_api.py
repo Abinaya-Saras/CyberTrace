@@ -435,6 +435,104 @@ class TestAPIEndpoints:
             assert "process_ram_mb" in data
             assert "total_incidents" in data
 
+    def test_inc_002_accuracy_and_evidence_consistency(self, client):
+        """
+        Comprehensive regression test for INC-002 on WS-SALES-013:
+          1. 18 alert records, 4 detection rules, 9 distinct users, 4 MITRE techniques
+          2. Process identity separation with distinct PIDs
+          3. Missing parent PID handling (unparented unknown.exe)
+          4. Observed vs inferred edges explicitly labeled
+          5. Timeline ordering with exact byte offsets
+          6. Reserved documentation IP classification (192.0.2.88, 203.0.113.57)
+          7. Full consistency between catalog, detail, path, story, and report APIs
+        """
+        # 1. Catalog API consistency
+        incidents = client.get("/api/incidents").json()
+        inc_summary = next((i for i in incidents if i["incident_id"] == "INC-002"), None)
+        assert inc_summary is not None, "INC-002 not found in incident catalog"
+        assert inc_summary["hosts"] == ["WS-SALES-013"]
+        assert inc_summary["alert_count"] == 18
+        assert len(inc_summary["users"]) == 9
+        expected_users = {"asharma", "dnair", "kiyer", "mkhan", "nverma", "pmehta", "rkumar", "sgupta", "vreddy"}
+        assert set(inc_summary["users"]) == expected_users
+
+        # 2. Detail API consistency
+        inc_detail = client.get("/api/incidents/INC-002").json()
+        assert inc_detail["alert_count"] == 18
+        assert len(inc_detail["alerts"]) == 18
+        assert set(inc_detail["detection_rules"]) == {"RULE-002", "RULE-003", "RULE-004", "RULE-005"}
+        assert set(inc_detail["mitre_techniques"]) == {"T1059.001", "T1071.001", "T1486", "T1547.001"}
+        assert set(inc_detail["users"]) == expected_users
+
+        # Check process separation
+        ps_pids = {a["process_id"] for a in inc_detail["alerts"] if a["rule_id"] == "RULE-002"}
+        reg_pids = {a["process_id"] for a in inc_detail["alerts"] if a["rule_id"] == "RULE-004"}
+        file_pids = {a["process_id"] for a in inc_detail["alerts"] if a["rule_id"] == "RULE-005"}
+        net_pids = {a["process_id"] for a in inc_detail["alerts"] if a["rule_id"] == "RULE-003"}
+
+        assert len(ps_pids) == 8
+        assert len(reg_pids) == 3
+        assert len(file_pids) == 5
+        assert len(net_pids) == 2
+
+        # Check missing parent PID
+        for fa in inc_detail["alerts"]:
+            if fa["rule_id"] == "RULE-005":
+                assert fa["parent_process_id"] is None
+                assert fa["parent_process_name"] is None
+
+        # 3. Path / Graph API consistency
+        inc_path = client.get("/incidents/INC-002/path").json()
+        assert inc_path["alert_count"] == 18
+        assert len(inc_path["reach_next"]) == 2
+        for r in inc_path["reach_next"]:
+            assert r["target_type"] == "reserved_documentation_ip"
+            assert r["verification_status"] == "outbound_connection_observed"
+            assert "RFC 5737" in r["reasoning"]
+            assert "NOT real external attacker infrastructure" in r["reasoning"]
+
+        # Check graph edges: observed vs inferred
+        edges = inc_path["graph"]["edges"]
+        assert any(e["is_observed"] for e in edges)
+        assert any(e["is_inferred"] for e in edges)
+        # Ensure no spurious spawned edge from powershell to unknown
+        for e in edges:
+            if e["relationship_type"] == "SPAWNED_PROCESS":
+                assert not ("powershell" in e["source"] and "unknown" in e["target"])
+
+        # 4. Timeline API consistency
+        timeline = client.get("/api/incidents/INC-002/timeline").json()
+        assert len(timeline) == 18
+        timestamps = [t["timestamp"] for t in timeline]
+        assert timestamps == sorted(timestamps), "Timeline events must be chronologically ordered"
+        for t in timeline:
+            assert t["byte_offset"] >= 0
+            assert t["record_length"] > 0
+            assert t["event_id"]
+
+        # 5. Executive Story API consistency
+        story = client.get("/api/incidents/INC-002/story").json()
+        assert story["risk_score"] == 100
+        story_dets = story["question_answers"]["triggered_detections"]
+        assert len(story_dets) == 18
+        story_rules = {d["rule_id"] for d in story_dets}
+        assert story_rules == {"RULE-002", "RULE-003", "RULE-004", "RULE-005"}
+        conf_inf = story["question_answers"]["confirmed_vs_inferred"]
+        assert "Process parent-child execution lineage" in conf_inf["confirmed"]
+        assert "parent PID for file renames was unobserved" in conf_inf["inferred"]
+
+        # 6. Plain-English Report API consistency
+        report = client.get("/api/incidents/INC-002/report").json()
+        assert report["alert_count"] == 18
+        assert set(report["users"]) == expected_users
+        assert sorted(report["rule_reconciliation"].keys()) == ["RULE-002", "RULE-003", "RULE-004", "RULE-005"]
+        md = report["markdown_report"]
+        assert "18 alert records" in md
+        assert "**Risk Score:** 100/100" in md
+        assert "Missing Parent PID Integrity" in md
+        for u in expected_users:
+            assert u in md
+
 
 
 

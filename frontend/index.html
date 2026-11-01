@@ -976,6 +976,7 @@
     .pill-auth { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
     .pill-internal { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
     .pill-outbound { background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color); }
+    .pill-documentation { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
 
     .reach-field-row {
       display: flex;
@@ -2818,15 +2819,27 @@
       `;
 
       if (node.node_type === "network_dest") {
+        const isDoc = node.properties?.is_reserved_documentation;
         html += `
           <div class="prop-row">
             <div class="prop-key">Network Classification</div>
-            <div class="prop-val" style="background:#eff6ff; color:#1d4ed8; font-weight:600;">
-              Supporting Network (Observed Outbound)
+            <div class="prop-val" style="background:${isDoc ? '#f8fafc' : '#eff6ff'}; color:${isDoc ? '#475569' : '#1d4ed8'}; font-weight:600;">
+              ${isDoc ? "Reserved Documentation IP (RFC 5737)" : "Supporting Network (Observed Outbound)"}
             </div>
           </div>
           <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">
-            Note: Telemetry records outbound connectivity from this host. It does not establish attacker C2 or confirmed target compromise.
+            ${isDoc ? "Destination belongs to a reserved documentation range (RFC 5737). Outbound connection was observed; this is test/documentation telemetry, NOT real external attacker infrastructure." : "Note: Telemetry records outbound connectivity from this host. It does not establish attacker C2 or confirmed target compromise."}
+          </div>
+        `;
+      }
+
+      if (node.node_type === "process" && (node.properties?.parent_process_id === null || node.properties?.parent_process_id === undefined || node.properties?.unobserved_parent)) {
+        html += `
+          <div class="prop-row">
+            <div class="prop-key">Process Ancestry</div>
+            <div class="prop-val" style="color:var(--text-subtle); font-style:italic;">
+              No Parent PID Observed (Independent Process)
+            </div>
           </div>
         `;
       }
@@ -2970,29 +2983,40 @@
       container.innerHTML = targets.map(t => {
         let pillClass = "pill-outbound";
         let statusTitle = "Outbound connection observed";
-        let statusExplainer = "Host sent network traffic to a destination. This does not prove attacker control.";
-        let accessConfirmedText = "No (Unconfirmed)";
+        let statusExplainer = "Host sent network traffic to a destination. Outbound connection observed; access or compromise is not confirmed.";
+        let accessConfirmedText = "No (Traffic observed only)";
         let accessConfirmedColor = "var(--text-muted)";
 
+        const targetType = (t.target_type || "").toLowerCase();
         const vStatus = (t.verification_status || "").toLowerCase();
         const rel = (t.relationship || "").toLowerCase();
 
-        if (vStatus === "confirmed_access") {
+        if (targetType === "reserved_documentation_ip" || t.is_reserved_documentation) {
+          pillClass = "pill-documentation";
+          statusTitle = "Reserved documentation IP (RFC 5737)";
+          statusExplainer = "Destination belongs to a reserved documentation range (RFC 5737). Outbound connection was observed; this is test/documentation telemetry, not real external attacker infrastructure.";
+          accessConfirmedText = "No (Documentation range - not attacker host)";
+        } else if (vStatus === "access_or_compromise_confirmed" || vStatus === "confirmed_access") {
           pillClass = "pill-confirmed";
-          statusTitle = "Access confirmed";
+          statusTitle = "Access or compromise confirmed";
           statusExplainer = "Telemetry supports actual access or execution on the target.";
           accessConfirmedText = "Yes (Confirmed)";
           accessConfirmedColor = "var(--success-text)";
-        } else if (vStatus === "authenticated_only" || rel === "successful_authentication") {
+        } else if (vStatus === "successful_authentication_observed" || vStatus === "authenticated_only" || rel === "successful_authentication") {
           pillClass = "pill-auth";
-          statusTitle = "Authentication succeeded";
-          statusExplainer = "Successful remote authentication was recorded. Execution remains unproven.";
+          statusTitle = "Successful authentication observed";
+          statusExplainer = "Successful remote authentication was recorded. Execution or compromise remains unproven.";
           accessConfirmedText = "No (Authentication only)";
-        } else if (vStatus === "potential_internal_connectivity" || rel === "potential_internal_connectivity") {
+        } else if (vStatus === "internal_network_connectivity_observed" || vStatus === "potential_internal_connectivity" || rel === "internal_network_connectivity_observed") {
           pillClass = "pill-internal";
-          statusTitle = "Internal connection observed";
-          statusExplainer = "Traffic between internal systems was recorded. This alone does not prove compromise.";
+          statusTitle = "Internal network connectivity observed";
+          statusExplainer = "Traffic between internal systems was recorded. This alone does not prove compromise or access.";
           accessConfirmedText = "No (Traffic observed only)";
+        } else if (vStatus === "insufficient_evidence") {
+          pillClass = "pill-outbound";
+          statusTitle = "Insufficient evidence";
+          statusExplainer = "Telemetry is insufficient to determine reachability or access.";
+          accessConfirmedText = "No (Insufficient evidence)";
         }
 
         return `

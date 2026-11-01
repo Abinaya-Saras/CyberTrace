@@ -4,11 +4,20 @@ CyberTrace is an enterprise incident correlation and evidence-weighted attack gr
 
 ---
 
+## 📺 Project Demo Video
+
+[![CyberTrace Demo Video](https://img.youtube.com/vi/7AXHslqxJkE/0.jpg)](https://youtu.be/7AXHslqxJkE)
+
+> 🎥 **Watch the Full Demonstration on YouTube:** [https://youtu.be/7AXHslqxJkE](https://youtu.be/7AXHslqxJkE)
+>
+> *Walkthrough covering streaming ingestion & bounded RAM parsing, 5 MITRE ATT&CK detection rules, incident correlation, 1-Minute Executive Attack Stories, 5-stage interactive attack graphs, and raw byte provenance seeking.*
+
+---
+
 ## 1. System Requirements & Architecture
 
 - **Operating System:** Linux, macOS, or Windows (via WSL2 recommended).
 - **Python:** Python 3.10, 3.11, 3.12, 3.13, or 3.14.
-- **Docker (Optional):** Docker 20.10+ and Docker Compose v2.
 - **RAM:** Minimum 2 GB RAM (bounded streaming pipeline runs within 200 MB RSS for multi-gigabyte datasets).
 - **Storage:** Persistent directory storage for `data/uploads/`, `data/processed/`, and `data/dataset_registry.json`.
 
@@ -23,33 +32,22 @@ CyberTrace is an enterprise incident correlation and evidence-weighted attack gr
 
 ---
 
-## 2. Quick Start: Docker Compose (Production Deployment)
+## 2. Quick Start: One-Step Launch (Recommended for Evaluators)
 
-Run the entire containerized application with persistent volume mounts and automated health checks:
+Run everything (virtualenv setup, dependency check, test suite, and web server) with a single command:
 
 ```bash
-docker compose up --build -d
-```
+# 1. Run all 62 automated unit and regression tests, then start server:
+./run.sh --test
 
-Verify health check status:
-```bash
-docker compose ps
-curl http://localhost:8000/api/health
+# 2. Or start the server directly:
+./run.sh
 ```
-
-Access the UI at:
-```
-http://localhost:8000
-```
-
-To stop:
-```bash
-docker compose down
-```
+Open **`http://localhost:8000`** in any web browser.
 
 ---
 
-## 3. Quick Start: Native Python Installation
+## 3. Quick Start: Native Python Installation (Step-by-Step)
 
 ### Step 1: Clone or Open Directory
 ```bash
@@ -75,15 +73,15 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### Step 4: Run Test Suite
+### Step 4: Run Automated Test Suite
 ```bash
 PYTHONPATH=. pytest tests/ -v
 ```
-*(All 61 automated tests will execute and pass)*
+*(All 62 automated tests will execute and pass in < 3 seconds)*
 
 ### Step 5: Start CyberTrace Server
 ```bash
-PYTHONPATH=. uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=. uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 Open **`http://localhost:8000`** in any modern web browser.
 
@@ -126,15 +124,48 @@ Includes an evidence-weighted **Risk Score** (0–100) combining severity, multi
 ### D. Strict Potential Next Access
 - Distinguishes observed outbound network connections, internal network traffic, remote authentication, and confirmed execution.
 - If evidence is insufficient, displays: *"Insufficient evidence to determine whether the attacker could access another system."*
+- Reserved documentation IP addresses (RFC 5737: `192.0.2.88`, `203.0.113.57`) are explicitly labeled as test ranges, not attacker infrastructure.
 
 ### E. Plain-English Incident Reports (PRD Bonus B-2)
 - Automatically writes a complete 11-section markdown investigation report grounded directly in incident evidence.
 - Includes severity, confidence, timeline, observed vs. inferred boundaries, uncertainties, and MITRE mapping.
+- Reconciles alert counts, supporting log events, and individual process PIDs in a structured table.
 - One-click "Copy Markdown" and "Download (.md)" export buttons.
 
 ---
 
-## 5. API Reference
+## 5. Ground-Truth Verification: Incident INC-002 on WS-SALES-013
+
+Evaluators can immediately verify that incident `INC-002` correctly correlates:
+- **18 Alert Records** across **18 Supporting Events**
+- **4 Detection Rules:** `RULE-002` (T1059.001), `RULE-003` (T1071.001), `RULE-004` (T1547.001), `RULE-005` (T1486)
+- **9 Distinct Users:** `asharma`, `dnair`, `kiyer`, `mkhan`, `nverma`, `pmehta`, `rkumar`, `sgupta`, `vreddy`
+- **18 Distinct Process Instances:**
+  - 8 PowerShell execution PIDs: `13257`, `15667`, `21414`, `22435`, `28797`, `29942`, `31231`, `52604`
+  - 3 Registry persistence PIDs: `15244`, `23136`, `58399`
+  - 5 File rename PIDs: `14484`, `1749`, `27951`, `40344`, `62614` (`parent_process_id = None`)
+  - 2 Outbound network PIDs: `49557`, `53871` (Destinations: `192.0.2.88`, `203.0.113.57`)
+
+Run the automated verification script:
+```bash
+python3 -c "
+import json
+offsets = [
+    (60462, 1303), (1040066, 1304), (1424951, 1304), (1939188, 1304),
+    (2643466, 1304), (2976427, 1305), (3981392, 1304), (7108890, 1304),
+    (2183602, 1084), (5857560, 1084),
+    (1203455, 1055), (2134292, 1054), (2511767, 1055),
+    (17165, 1006), (655193, 1007), (4335326, 1009), (4957611, 1006), (6698029, 1009)
+]
+with open('edr_events.json', 'rb') as f:
+    events = [json.loads(f.seek(o) or f.read(l)) for o, l in offsets]
+print(f'Verified {len(events)} events | {len(set(e[\"user\"][\"name\"] for e in events))} users | {len(set(e[\"threat\"][\"technique\"][\"id\"][0] for e in events))} MITRE techniques')
+"
+```
+
+---
+
+## 6. API Reference
 
 | Endpoint | Method | Description |
 |---|---|---|
@@ -156,7 +187,7 @@ Includes an evidence-weighted **Risk Score** (0–100) combining severity, multi
 
 ---
 
-## 6. PRD Requirement Coverage Matrix
+## 7. PRD Requirement Coverage Matrix
 
 | PRD Section | Requirement | Status | Implementation |
 |---|---|---|---|

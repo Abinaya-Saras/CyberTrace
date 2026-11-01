@@ -86,12 +86,20 @@ class DatasetRegistry:
                 logger.warning(f"Failed to read dataset registry from {self.registry_file}: {e}")
 
     def save(self) -> None:
-        """Persist registry atomically to disk."""
+        """Persist registry atomically to disk with fallback for container bind-mounts."""
         tmp_file = f"{self.registry_file}.tmp"
         try:
             with open(tmp_file, "w", encoding="utf-8") as fh:
                 json.dump(self._data, fh, indent=2, default=str)
-            os.replace(tmp_file, self.registry_file)
+            try:
+                os.replace(tmp_file, self.registry_file)
+            except OSError:
+                # If target is a special mountpoint or cross-filesystem, rename may raise OSError (e.g. Errno 16).
+                # Fallback to direct write:
+                with open(self.registry_file, "w", encoding="utf-8") as fh:
+                    json.dump(self._data, fh, indent=2, default=str)
+                if os.path.exists(tmp_file):
+                    os.remove(tmp_file)
         except Exception as e:
             logger.error(f"Failed to save dataset registry: {e}")
             if os.path.exists(tmp_file):
