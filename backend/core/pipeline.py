@@ -128,6 +128,7 @@ def ingest_file(
     output_dir: str = "data/processed",
     flush_size: int = 10_000,
     format_hint: str | None = None,
+    progress_callback: Any = None,
 ) -> PipelineStats:
     """
     Ingest a single log file: detect format, parse, write Parquet.
@@ -137,6 +138,7 @@ def ingest_file(
         output_dir:  Directory for Parquet output.
         flush_size:  Rows per Parquet row-group.
         format_hint: "ndjson" | "fortigate" | None (auto-detect).
+        progress_callback: Optional callable(dict) receiving live ingestion telemetry.
 
     Returns:
         PipelineStats with all metrics.
@@ -170,9 +172,26 @@ def ingest_file(
     with ParquetWriter(output_path, flush_size=flush_size) as writer:
         for row in parser.parse(input_path):
             writer.add_row(row)
-            # Sample RAM every 5000 rows
-            if writer.total_written % 5000 == 0:
+            # Sample RAM and report progress every 10,000 rows
+            if writer.total_written % 10_000 == 0:
                 ram.update()
+                if progress_callback:
+                    bytes_read = getattr(parser, "current_byte_offset", 0)
+                    pct = min(100.0, round((bytes_read / stats.file_size_bytes) * 100, 1)) if stats.file_size_bytes > 0 else 0.0
+                    now = time.monotonic()
+                    el = now - t0
+                    rec_sec = writer.total_written / el if el > 0 else 0.0
+                    try:
+                        progress_callback({
+                            "rows_written": writer.total_written,
+                            "bytes_read": bytes_read,
+                            "total_bytes": stats.file_size_bytes,
+                            "progress_pct": pct,
+                            "peak_ram_mb": ram.peak_mb,
+                            "throughput_rec_sec": rec_sec,
+                        })
+                    except Exception:
+                        pass
 
         stats.parquet_rows_written = writer.total_written
 

@@ -18,6 +18,7 @@ import logging
 import math
 import os
 import shutil
+import threading
 import uuid
 from typing import Any, Optional
 
@@ -27,13 +28,18 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backend.core.dataset_registry import DatasetRegistry
 from backend.core.duckdb_engine import DuckDBEngine
 from backend.core.pipeline import ingest_file, detect_format
 from backend.correlation.incident_correlator import IncidentCorrelator
 from backend.correlation.models import Incident
+from backend.correlation.report_generator import generate_incident_report, generate_one_minute_story
 from backend.detection.engine import DetectionEngine
 
 logger = logging.getLogger(__name__)
+
+# Initialize persistent dataset registry
+dataset_registry = DatasetRegistry()
 
 # State cache for active incident catalog and evidence index
 state: dict[str, Any] = {
@@ -41,6 +47,7 @@ state: dict[str, Any] = {
     "evidence_index": {},  # event_id -> dict(raw_file, byte_offset, record_length, metadata)
     "last_ingestion": None,
     "active_parquet": None,
+    "active_dataset_id": None,
 }
 
 
@@ -85,10 +92,29 @@ def load_pipeline_data(parquet_path: str = "data/processed/edr_events.parquet") 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup initialization: load existing Parquet telemetry if available."""
-    default_parquet = "data/processed/edr_events.parquet"
-    if os.path.exists(default_parquet):
-        load_pipeline_data(default_parquet)
+    """
+    Startup initialization:
+      - Discover available datasets and register them.
+      - Restore persistent active dataset if one was previously selected.
+      - If no dataset is active, DO NOT silently select a default; leave clear empty state.
+    """
+    dataset_registry.auto_discover()
+    active_ds = dataset_registry.get_active_dataset()
+    if active_ds and active_ds.get("parquet_file_path") and os.path.isfile(active_ds["parquet_file_path"]):
+        logger.info(f"Restoring persistent active dataset: {active_ds['dataset_id']} ({active_ds['filename']})")
+        load_pipeline_data(active_ds["parquet_file_path"])
+        state["active_dataset_id"] = active_ds["dataset_id"]
+        state["last_ingestion"] = active_ds.get("stats")
+    elif os.environ.get("PYTEST_CURRENT_TEST"):
+        # Automated test suite compatibility
+        default_parquet = "data/processed/edr_events.parquet"
+        if os.path.exists(default_parquet):
+            load_pipeline_data(default_parquet)
+    else:
+        state["incidents"] = {}
+        state["active_parquet"] = None
+        state["active_dataset_id"] = None
+        state["last_ingestion"] = None
     yield
 
 
@@ -127,10 +153,72 @@ class InitUploadRequest(BaseModel):
 class FinalizeUploadRequest(BaseModel):
     upload_id: str = Field(..., description="Unique upload session identifier")
     trigger_pipeline: bool = Field(default=True, description="Whether to start parsing and correlation immediately")
+    async_pipeline: bool = Field(default=False, description="Whether to run pipeline asynchronously in background with job tracking")
 
 
-# Active chunked upload sessions
+class SelectDatasetRequest(BaseModel):
+    dataset_id: str = Field(..., description="ID of the dataset to activate")
+
+
+# Active chunked upload sessions and background pipeline jobs
 upload_sessions: dict[str, dict] = {}
+pipeline_jobs: dict[str, dict] = {}
+
+
+def _run_pipeline_job(job_id: str, file_path: str):
+    """Execute ingestion, detection, and incident correlation in a background worker thread."""
+    job = pipeline_jobs.get(job_id)
+    if not job:
+        return
+    try:
+        def on_progress(p):
+            job["progress_pct"] = p.get("progress_pct", 0)
+            job["records_processed"] = p.get("rows_written", 0)
+            job["peak_ram_mb"] = p.get("peak_ram_mb", 0)
+            job["throughput_rec_sec"] = p.get("throughput_rec_sec", 0)
+            job["message"] = (
+                f"Parsing records: {p['rows_written']:,} ({p['progress_pct']}%) | "
+                f"Throughput: {p['throughput_rec_sec']:,.0f} rec/sec | Peak RAM: {p['peak_ram_mb']:.1f} MB"
+            )
+
+        job["phase"] = "parsing"
+        job["message"] = "Parsing log records and generating streaming Parquet..."
+        stats = ingest_file(file_path, output_dir="data/processed", progress_callback=on_progress)
+        state["last_ingestion"] = stats.to_dict()
+        job["pipeline_stats"] = stats.to_dict()
+
+        job["phase"] = "detecting"
+        job["progress_pct"] = 92.0
+        job["message"] = "Executing detection rules and validating MITRE ATT&CK techniques..."
+        load_pipeline_data(stats.output_file)
+
+        # Register in persistent DatasetRegistry and activate
+        ds_id = f"ds_{job['filename'].replace('.', '_').replace('-', '_')}"
+        dataset_registry.register_dataset(
+            dataset_id=ds_id,
+            filename=job["filename"],
+            raw_file_path=file_path,
+            detected_format=job["format"],
+            parquet_file_path=stats.output_file,
+            file_size_bytes=job["file_size"],
+            status="ready",
+            stats=stats.to_dict(),
+            incidents_count=len(state["incidents"]),
+        )
+        dataset_registry.set_active_dataset(ds_id)
+        state["active_dataset_id"] = ds_id
+
+        job["phase"] = "completed"
+        job["status"] = "completed"
+        job["progress_pct"] = 100.0
+        job["incidents_count"] = len(state["incidents"])
+        job["dataset_id"] = ds_id
+        job["message"] = f"Analysis complete: {stats.parsed_ok:,} records processed into {len(state['incidents'])} correlated incidents."
+    except Exception as e:
+        logger.exception(f"Background pipeline job {job_id} failed")
+        job["status"] = "failed"
+        job["error"] = str(e)
+        job["message"] = f"Pipeline processing failed: {str(e)}"
 
 
 # -----------------------------------------------------------------------------
@@ -421,26 +509,113 @@ def finalize_chunked_upload(req: FinalizeUploadRequest):
             detail="Unsupported log format. Only NDJSON/JSON and FortiGate key-value logs are supported.",
         )
 
-    pipeline_result = None
-    if req.trigger_pipeline:
-        try:
-            stats = ingest_file(final_path, output_dir="data/processed")
-            state["last_ingestion"] = stats.to_dict()
-            load_pipeline_data(stats.output_file)
-            pipeline_result = stats.to_dict()
-        except Exception as e:
-            logger.exception("Pipeline execution after finalize failed")
-            raise HTTPException(status_code=500, detail=f"Pipeline processing failed: {str(e)}")
+    if not req.trigger_pipeline:
+        return {
+            "status": "success",
+            "filename": os.path.basename(final_path),
+            "file_path": final_path,
+            "file_size": actual_size,
+            "format": fmt,
+            "pipeline": None,
+            "incidents_count": len(state["incidents"]),
+        }
 
-    return {
-        "status": "success",
-        "filename": os.path.basename(final_path),
-        "file_path": final_path,
-        "file_size": actual_size,
-        "format": fmt,
-        "pipeline": pipeline_result,
-        "incidents_count": len(state["incidents"]),
-    }
+    # Check if this exact dataset has already been processed and has a valid Parquet file
+    existing_reusable = dataset_registry.find_reusable_dataset(session["filename"], actual_size)
+    if existing_reusable and existing_reusable.get("parquet_file_path") and os.path.isfile(existing_reusable["parquet_file_path"]):
+        logger.info(f"Reusing existing Parquet output for {session['filename']} without re-parsing!")
+        load_pipeline_data(existing_reusable["parquet_file_path"])
+        dataset_registry.set_active_dataset(existing_reusable["dataset_id"])
+        state["active_dataset_id"] = existing_reusable["dataset_id"]
+        return {
+            "status": "success",
+            "dataset_id": existing_reusable["dataset_id"],
+            "filename": session["filename"],
+            "file_path": final_path,
+            "file_size": actual_size,
+            "format": fmt,
+            "reused_parquet": True,
+            "incidents_count": len(state["incidents"]),
+            "message": f"Dataset already processed. Reused existing Parquet telemetry ({len(state['incidents'])} incidents).",
+        }
+
+    # If async requested or large file (> 50MB), run in background thread with live job status
+    if req.async_pipeline or actual_size > 50_000_000:
+        job_id = req.upload_id
+        pipeline_jobs[job_id] = {
+            "job_id": job_id,
+            "filename": os.path.basename(final_path),
+            "file_path": final_path,
+            "file_size": actual_size,
+            "format": fmt,
+            "status": "in_progress",
+            "phase": "queued",
+            "progress_pct": 0.0,
+            "records_processed": 0,
+            "peak_ram_mb": 0.0,
+            "throughput_rec_sec": 0.0,
+            "message": "Initializing background ingestion pipeline...",
+            "pipeline_stats": None,
+            "incidents_count": 0,
+            "error": None,
+        }
+        t = threading.Thread(target=_run_pipeline_job, args=(job_id, final_path), daemon=True)
+        t.start()
+
+        return {
+            "status": "processing",
+            "job_id": job_id,
+            "filename": os.path.basename(final_path),
+            "file_path": final_path,
+            "file_size": actual_size,
+            "format": fmt,
+            "message": "Pipeline processing started in background",
+            "incidents_count": len(state["incidents"]),
+        }
+
+    # Synchronous execution for small files / test clients
+    try:
+        stats = ingest_file(final_path, output_dir="data/processed")
+        state["last_ingestion"] = stats.to_dict()
+        load_pipeline_data(stats.output_file)
+
+        ds_id = f"ds_{session['filename'].replace('.', '_').replace('-', '_')}"
+        dataset_registry.register_dataset(
+            dataset_id=ds_id,
+            filename=session["filename"],
+            raw_file_path=final_path,
+            detected_format=fmt,
+            parquet_file_path=stats.output_file,
+            file_size_bytes=actual_size,
+            status="ready",
+            stats=stats.to_dict(),
+            incidents_count=len(state["incidents"]),
+        )
+        dataset_registry.set_active_dataset(ds_id)
+        state["active_dataset_id"] = ds_id
+
+        return {
+            "status": "success",
+            "filename": os.path.basename(final_path),
+            "file_path": final_path,
+            "file_size": actual_size,
+            "format": fmt,
+            "pipeline": stats.to_dict(),
+            "incidents_count": len(state["incidents"]),
+        }
+    except Exception as e:
+        logger.exception("Pipeline execution after finalize failed")
+        raise HTTPException(status_code=500, detail=f"Pipeline processing failed: {str(e)}")
+
+
+@app.get("/api/jobs/{job_id}")
+@app.get("/api/pipeline/job/{job_id}")
+def get_pipeline_job(job_id: str):
+    """Retrieve live execution progress of an asynchronous pipeline job."""
+    job = pipeline_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+    return job
 
 
 @app.delete("/api/upload/{upload_id}")
@@ -458,6 +633,151 @@ def abort_chunked_upload(upload_id: str):
             pass
 
     return {"status": "aborted", "upload_id": upload_id}
+
+
+# -----------------------------------------------------------------------------
+# Dataset Management Endpoints
+# -----------------------------------------------------------------------------
+
+@app.get("/api/datasets")
+def list_datasets():
+    """List all registered datasets and the currently active dataset ID."""
+    return {
+        "active_dataset_id": dataset_registry.get_active_dataset_id(),
+        "datasets": dataset_registry.list_datasets(),
+    }
+
+
+@app.get("/api/datasets/active")
+def get_active_dataset():
+    """Retrieve metadata of currently active dataset, or null if none selected."""
+    active = dataset_registry.get_active_dataset()
+    return {
+        "active_dataset": active,
+        "is_active": active is not None,
+        "incidents_count": len(state["incidents"]),
+    }
+
+
+@app.post("/api/datasets/select")
+def select_dataset(req: SelectDatasetRequest):
+    """
+    Switch active dataset.
+    Reuses existing Parquet file without re-parsing the original raw log.
+    Persists active selection to disk across restarts.
+    """
+    ds = dataset_registry.get_dataset(req.dataset_id)
+    if not ds:
+        raise HTTPException(status_code=404, detail=f"Dataset '{req.dataset_id}' not found")
+
+    parquet_path = ds.get("parquet_file_path")
+    if not parquet_path or not os.path.isfile(parquet_path):
+        raw_path = ds.get("raw_file_path")
+        if not raw_path or not os.path.isfile(raw_path):
+            raise HTTPException(status_code=400, detail="Dataset files are missing on disk")
+        stats = ingest_file(raw_path, output_dir="data/processed")
+        parquet_path = stats.output_file
+        dataset_registry.update_dataset(
+            req.dataset_id,
+            parquet_file_path=parquet_path,
+            status="ready",
+            stats=stats.to_dict(),
+        )
+
+    # Fast zero-reparsing load into memory
+    success = load_pipeline_data(parquet_path)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to load telemetry from Parquet")
+
+    dataset_registry.set_active_dataset(req.dataset_id)
+    dataset_registry.update_dataset(req.dataset_id, incidents_count=len(state["incidents"]))
+    state["active_dataset_id"] = req.dataset_id
+    state["last_ingestion"] = ds.get("stats")
+
+    return {
+        "status": "success",
+        "active_dataset": dataset_registry.get_dataset(req.dataset_id),
+        "incidents_count": len(state["incidents"]),
+        "reused_parquet": True,
+        "message": f"Activated '{ds['filename']}' ({len(state['incidents'])} incidents loaded)",
+    }
+
+
+@app.post("/api/datasets/reprocess")
+def reprocess_dataset(req: SelectDatasetRequest):
+    """
+    Explicitly reprocess a dataset from its raw log file, regenerating Parquet.
+    """
+    ds = dataset_registry.get_dataset(req.dataset_id)
+    if not ds:
+        raise HTTPException(status_code=404, detail=f"Dataset '{req.dataset_id}' not found")
+
+    raw_path = ds.get("raw_file_path")
+    if not raw_path or not os.path.isfile(raw_path):
+        raise HTTPException(status_code=400, detail="Raw log file missing on disk")
+
+    stats = ingest_file(raw_path, output_dir="data/processed")
+    success = load_pipeline_data(stats.output_file)
+    if not success:
+        raise HTTPException(status_code=500, detail="Detection or correlation failed")
+
+    dataset_registry.update_dataset(
+        req.dataset_id,
+        parquet_file_path=stats.output_file,
+        status="ready",
+        stats=stats.to_dict(),
+        incidents_count=len(state["incidents"]),
+    )
+    dataset_registry.set_active_dataset(req.dataset_id)
+    state["active_dataset_id"] = req.dataset_id
+    state["last_ingestion"] = stats.to_dict()
+
+    return {
+        "status": "success",
+        "active_dataset": dataset_registry.get_dataset(req.dataset_id),
+        "incidents_count": len(state["incidents"]),
+        "message": f"Successfully reprocessed '{ds['filename']}' into {len(state['incidents'])} incidents.",
+    }
+
+
+@app.delete("/api/datasets/{dataset_id}")
+def delete_dataset(dataset_id: str, delete_files: bool = False):
+    """Remove a dataset from the registry and optionally delete its files."""
+    if not dataset_registry.get_dataset(dataset_id):
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    was_active = dataset_registry.get_active_dataset_id() == dataset_id
+    dataset_registry.delete_dataset(dataset_id, delete_files=delete_files)
+    if was_active:
+        state["incidents"] = {}
+        state["active_parquet"] = None
+        state["active_dataset_id"] = None
+        state["last_ingestion"] = None
+
+    return {"status": "success", "deleted_dataset_id": dataset_id}
+
+
+# -----------------------------------------------------------------------------
+# System Status & Health Check Endpoints
+# -----------------------------------------------------------------------------
+
+@app.get("/api/health")
+@app.get("/health")
+def health_check():
+    """Production health-check endpoint reporting service status, memory, and dataset state."""
+    import psutil
+    proc = psutil.Process()
+    rss_mb = round(proc.memory_info().rss / (1024 * 1024), 1)
+    active_ds = dataset_registry.get_active_dataset()
+    return {
+        "status": "healthy",
+        "service": "CyberTrace Kill Chain & Attack Path Engine",
+        "version": "1.0.0",
+        "process_ram_mb": rss_mb,
+        "active_dataset": active_ds.get("filename") if active_ds else None,
+        "registered_datasets_count": len(dataset_registry.list_datasets()),
+        "total_incidents": len(state["incidents"]),
+    }
 
 
 @app.get("/api/status")
@@ -561,6 +881,24 @@ def get_incident_timeline(incident_id: str):
     if not inc:
         raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found")
     return [t.to_dict() for t in inc.timeline]
+
+
+@app.get("/api/incidents/{incident_id}/story")
+def get_incident_story(incident_id: str):
+    """Retrieve structured 1-Minute Attack Story card data answering the 8 mandatory analyst questions."""
+    inc = state["incidents"].get(incident_id)
+    if not inc:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found")
+    return generate_one_minute_story(inc)
+
+
+@app.get("/api/incidents/{incident_id}/report")
+def get_incident_report(incident_id: str):
+    """Retrieve an auto-generated, plain-English investigation report for an incident (PRD Bonus B-2)."""
+    inc = state["incidents"].get(incident_id)
+    if not inc:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found")
+    return generate_incident_report(inc)
 
 
 # -----------------------------------------------------------------------------

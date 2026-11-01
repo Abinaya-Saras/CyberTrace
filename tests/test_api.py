@@ -27,9 +27,20 @@ from backend.api.main import app, state, load_pipeline_data
 @pytest.fixture(scope="module")
 def client():
     """Create test client with pipeline data loaded."""
+    from backend.api.main import dataset_registry
     default_parquet = "data/processed/edr_events.parquet"
     if os.path.exists(default_parquet):
         load_pipeline_data(default_parquet)
+        dataset_registry.register_dataset(
+            dataset_id="ds_edr_sample",
+            filename="edr_events.json",
+            raw_file_path="edr_events.json",
+            detected_format="ndjson",
+            parquet_file_path=default_parquet,
+            status="ready",
+            incidents_count=29,
+        )
+        dataset_registry.set_active_dataset("ds_edr_sample")
     with TestClient(app) as c:
         yield c
 
@@ -302,5 +313,128 @@ class TestAPIEndpoints:
         # Verify status now returns 404
         st_resp = client.get(f"/api/upload/status/{upload_id}")
         assert st_resp.status_code == 404
+
+    def test_async_pipeline_job_lifecycle(self, client):
+        """Test asynchronous pipeline background job initiation and polling progress."""
+        import time
+
+        with open("edr_events.json", "rb") as f:
+            content = f.read(40000)
+        total_size = len(content)
+        chunk_size = 20000
+
+        # 1. Init with unique filename to ensure background ingestion executes
+        test_filename = f"async_test_{time.time_ns()}.json"
+        init_res = client.post("/api/upload/init", json={
+            "filename": test_filename,
+            "total_size": total_size,
+            "chunk_size": chunk_size
+        }).json()
+        upload_id = init_res["upload_id"]
+
+        # 2. Upload chunks
+        for idx in range(init_res["total_chunks"]):
+            start = idx * chunk_size
+            end = min(start + chunk_size, total_size)
+            client.post(
+                "/api/upload/chunk",
+                data={"upload_id": upload_id, "chunk_index": idx},
+                files={"file": ("chunk", content[start:end], "application/octet-stream")}
+            )
+
+        # 3. Finalize with async_pipeline=True
+        fin_resp = client.post("/api/upload/finalize", json={
+            "upload_id": upload_id,
+            "trigger_pipeline": True,
+            "async_pipeline": True
+        })
+        assert fin_resp.status_code == 200
+        fin_data = fin_resp.json()
+        assert fin_data["status"] == "processing"
+        assert fin_data["job_id"] == upload_id
+
+        # 4. Poll job status
+        completed = False
+        final_job = None
+        for _ in range(30):
+            job_resp = client.get(f"/api/jobs/{upload_id}")
+            assert job_resp.status_code == 200
+            final_job = job_resp.json()
+            if final_job["status"] == "completed":
+                completed = True
+                break
+            time.sleep(0.1)
+
+        assert completed is True
+        assert final_job["progress_pct"] == 100.0
+        assert final_job["phase"] == "completed"
+
+        # Cleanup
+        if os.path.exists(fin_data["file_path"]):
+            os.remove(fin_data["file_path"])
+
+    def test_dataset_endpoints(self, client):
+        """Test GET /api/datasets, GET /api/datasets/active, and POST /api/datasets/select."""
+        # 1. List datasets
+        res = client.get("/api/datasets")
+        assert res.status_code == 200
+        data = res.json()
+        assert "datasets" in data
+        assert "active_dataset_id" in data
+
+        # 2. Get active dataset
+        res_active = client.get("/api/datasets/active")
+        assert res_active.status_code == 200
+        assert "is_active" in res_active.json()
+
+        # 3. Select dataset
+        res_sel = client.post("/api/datasets/select", json={"dataset_id": "ds_edr_sample"})
+        assert res_sel.status_code == 200
+        sel_data = res_sel.json()
+        assert sel_data["status"] == "success"
+        assert sel_data["reused_parquet"] is True
+        assert sel_data["incidents_count"] >= 29
+
+    def test_incident_report_and_story_endpoints(self, client):
+        """Test GET /api/incidents/{id}/report and GET /api/incidents/{id}/story."""
+        incidents = client.get("/api/incidents").json()
+        assert len(incidents) > 0
+        inc_id = incidents[0]["incident_id"]
+
+        # 1. 1-Minute Attack Story
+        res_story = client.get(f"/api/incidents/{inc_id}/story")
+        assert res_story.status_code == 200
+        story = res_story.json()
+        assert "risk_score" in story
+        assert "question_answers" in story
+        qa = story["question_answers"]
+        assert "what_happened" in qa
+        assert "entities_involved" in qa
+        assert "what_happened_first" in qa
+        assert "what_happened_next" in qa
+        assert "triggered_detections" in qa
+        assert "confirmed_vs_inferred" in qa
+        assert "known_outcome" in qa
+
+        # 2. Plain-English Investigation Report
+        res_report = client.get(f"/api/incidents/{inc_id}/report")
+        assert res_report.status_code == 200
+        report = res_report.json()
+        assert report["incident_id"] == inc_id
+        assert "markdown_report" in report
+        assert "# CyberTrace Security Incident Investigation Report" in report["markdown_report"]
+        assert "## 1. Executive Summary" in report["markdown_report"]
+
+    def test_health_check_endpoint(self, client):
+        """Test GET /api/health and GET /health."""
+        for path in ["/api/health", "/health"]:
+            res = client.get(path)
+            assert res.status_code == 200
+            data = res.json()
+            assert data["status"] == "healthy"
+            assert "process_ram_mb" in data
+            assert "total_incidents" in data
+
+
 
 

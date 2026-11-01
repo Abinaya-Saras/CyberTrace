@@ -129,9 +129,9 @@ def build_incident_timeline(
                 )
             )
 
-    # Sort strictly chronologically
+    # Sort strictly chronologically and cap to prevent browser DOM exhaustion
     timeline.sort(key=lambda item: _parse_ts(item.timestamp))
-    return timeline
+    return timeline[:500]
 
 
 def build_evidence_attack_graph(
@@ -192,8 +192,10 @@ def build_evidence_attack_graph(
     for h in hosts:
         add_node(f"host:{h}", "host", h, {"host_name": h})
 
-    # Sort alerts chronologically
+    # Sort alerts chronologically and cap to top 20 for graph clarity and performance
     sorted_alerts = sorted(alerts, key=lambda a: _parse_ts(a.first_seen))
+    if len(sorted_alerts) > 20:
+        sorted_alerts = sorted_alerts[:20]
     prev_alert_node_id: Optional[str] = None
 
     for alert in sorted_alerts:

@@ -117,12 +117,14 @@ class NDJSONParser:
         filename = os.path.basename(filepath)
         source = source_label or filename
         byte_offset = 0
+        self.current_byte_offset = 0
 
         with open(filepath, "r", encoding="utf-8", errors="replace") as fh:
             for line_no, raw_line in enumerate(fh, start=1):
                 line_bytes = len(raw_line.encode("utf-8"))
                 current_offset = byte_offset
                 byte_offset += line_bytes
+                self.current_byte_offset = byte_offset
 
                 self.stats["total_lines"] += 1
 
@@ -135,24 +137,26 @@ class NDJSONParser:
                     obj = json.loads(stripped)
                 except json.JSONDecodeError as exc:
                     self.stats["malformed"] += 1
-                    self.malformed_records.append({
-                        "file": filename,
-                        "line": line_no,
-                        "byte_offset": current_offset,
-                        "error": f"JSON decode error: {exc}",
-                        "raw": stripped[:500],
-                    })
+                    if len(self.malformed_records) < 1000:
+                        self.malformed_records.append({
+                            "file": filename,
+                            "line": line_no,
+                            "byte_offset": current_offset,
+                            "error": f"JSON decode error: {exc}",
+                            "raw": stripped[:500],
+                        })
                     continue
 
                 if not isinstance(obj, dict):
                     self.stats["malformed"] += 1
-                    self.malformed_records.append({
-                        "file": filename,
-                        "line": line_no,
-                        "byte_offset": current_offset,
-                        "error": "Top-level value is not a JSON object",
-                        "raw": stripped[:500],
-                    })
+                    if len(self.malformed_records) < 1000:
+                        self.malformed_records.append({
+                            "file": filename,
+                            "line": line_no,
+                            "byte_offset": current_offset,
+                            "error": "Top-level value is not a JSON object",
+                            "raw": stripped[:500],
+                        })
                     continue
 
                 try:
@@ -161,13 +165,14 @@ class NDJSONParser:
                     yield row
                 except Exception as exc:
                     self.stats["malformed"] += 1
-                    self.malformed_records.append({
-                        "file": filename,
-                        "line": line_no,
-                        "byte_offset": current_offset,
-                        "error": f"Normalization error: {exc}",
-                        "raw": stripped[:500],
-                    })
+                    if len(self.malformed_records) < 1000:
+                        self.malformed_records.append({
+                            "file": filename,
+                            "line": line_no,
+                            "byte_offset": current_offset,
+                            "error": f"Normalization error: {exc}",
+                            "raw": stripped[:500],
+                        })
 
     # ------------------------------------------------------------------
     # Normalization: flatten ECS JSON -> flat dict

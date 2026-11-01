@@ -126,52 +126,80 @@ def detect_brute_force(
     if not mapping:
         raise ValueError("Mapping for T1110 not found in catalog")
 
+    # Limit evidence events per group to prevent unbounded RAM on large firewall datasets.
+    # With 12M+ records and 118K+ scanner IPs, list() aggregation can exceed available memory.
+    max_evidence_per_group = 50
+    max_groups = 50
+
     sql = f"""
+    WITH top_groups AS (
+        SELECT
+            host_name,
+            username,
+            source_ip,
+            count(*) as fail_count,
+            min(timestamp) as first_seen,
+            max(timestamp) as last_seen
+        FROM {view_name}
+        WHERE event_category = 'authentication'
+          AND (event_outcome IN ('failure', 'failed') OR winlog_event_id = 4625)
+        GROUP BY host_name, username, source_ip
+        HAVING count(*) >= ?
+        ORDER BY fail_count DESC
+        LIMIT {max_groups}
+    )
     SELECT
-        host_name,
-        username,
-        source_ip,
-        count(*) as fail_count,
-        min(timestamp) as first_seen,
-        max(timestamp) as last_seen,
-        list(event_id) as event_ids,
-        list(raw_file) as raw_files,
-        list(byte_offset) as byte_offsets,
-        list(record_length) as record_lengths,
-        list(timestamp) as timestamps,
-        list(username) as usernames,
-        list(source_ip) as source_ips
-    FROM {view_name}
-    WHERE event_category = 'authentication'
-      AND (event_outcome = 'failure' OR winlog_event_id = 4625)
-    GROUP BY host_name, username, source_ip
-    HAVING count(*) >= ?
-    ORDER BY fail_count DESC
+        t.host_name,
+        t.username,
+        t.source_ip,
+        t.fail_count,
+        t.first_seen,
+        t.last_seen,
+        list(r.event_id)[:{max_evidence_per_group}] as event_ids,
+        list(r.raw_file)[:{max_evidence_per_group}] as raw_files,
+        list(r.byte_offset)[:{max_evidence_per_group}] as byte_offsets,
+        list(r.record_length)[:{max_evidence_per_group}] as record_lengths,
+        list(r.timestamp)[:{max_evidence_per_group}] as timestamps,
+        list(r.username)[:{max_evidence_per_group}] as usernames,
+        list(r.source_ip)[:{max_evidence_per_group}] as source_ips
+    FROM top_groups t
+    JOIN {view_name} r
+      ON r.event_category = 'authentication'
+     AND (r.event_outcome IN ('failure', 'failed') OR r.winlog_event_id = 4625)
+     AND r.host_name IS NOT DISTINCT FROM t.host_name
+     AND r.username IS NOT DISTINCT FROM t.username
+     AND r.source_ip IS NOT DISTINCT FROM t.source_ip
+    GROUP BY t.host_name, t.username, t.source_ip, t.fail_count, t.first_seen, t.last_seen
+    ORDER BY t.fail_count DESC
     """
     rows = engine.query(sql, [min_failures])
     alerts: list[Alert] = []
 
-    # Pre-fetch successful authentications in one query to avoid N per-row queries
+    # Pre-fetch successful authentications ONLY for candidate attacker source IPs
+    # to avoid loading millions of records into Python RAM on firewall datasets
     success_map: dict[tuple[str, str, str], list[Any]] = {}
-    if check_subsequent_success:
-        succ_all_sql = f"""
-        SELECT username, host_name, source_ip, timestamp
-        FROM {view_name}
-        WHERE event_category = 'authentication'
-          AND (event_outcome = 'success' OR winlog_event_id = 4624)
-          AND username IS NOT NULL
-          AND host_name IS NOT NULL
-          AND source_ip IS NOT NULL
-        """
-        try:
-            s_rows = engine.query(succ_all_sql)
-            for su, sh, ss, st in s_rows:
-                key = (str(su), str(sh), str(ss))
-                if key not in success_map:
-                    success_map[key] = []
-                success_map[key].append(st)
-        except Exception:
-            pass
+    if check_subsequent_success and rows:
+        candidate_ips = {str(r[2]) for r in rows if r[2]}
+        if candidate_ips:
+            ip_clause = ", ".join(f"'{ip}'" for ip in candidate_ips)
+            succ_all_sql = f"""
+            SELECT username, host_name, source_ip, timestamp
+            FROM {view_name}
+            WHERE event_category = 'authentication'
+              AND (event_outcome = 'success' OR winlog_event_id = 4624)
+              AND source_ip IN ({ip_clause})
+              AND username IS NOT NULL
+              AND host_name IS NOT NULL
+            """
+            try:
+                s_rows = engine.query(succ_all_sql)
+                for su, sh, ss, st in s_rows:
+                    key = (str(su), str(sh), str(ss))
+                    if key not in success_map:
+                        success_map[key] = []
+                    success_map[key].append(st)
+            except Exception:
+                pass
 
     for row in rows:
         host, user, src_ip, fail_cnt, first_seen, last_seen, eids, rfiles, boffs, rlens, tss, unames, sips = row
