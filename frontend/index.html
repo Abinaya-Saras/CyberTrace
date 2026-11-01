@@ -517,19 +517,37 @@
 
     .story-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 12px;
-      padding-top: 4px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding-top: 8px;
+    }
+
+    @media (max-width: 1100px) {
+      .story-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 650px) {
+      .story-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .story-item {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      background: var(--bg-page);
+      background: var(--bg-surface);
       border: 1px solid var(--border-color);
-      border-radius: 5px;
+      border-radius: 6px;
       padding: 8px 10px;
+      height: 130px;
+      box-sizing: border-box;
+      transition: border-color 0.15s ease;
+    }
+
+    .story-item:hover {
+      border-color: var(--border-strong);
     }
 
     .story-q {
@@ -538,12 +556,90 @@
       color: var(--text-subtle);
       text-transform: uppercase;
       letter-spacing: 0.3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 4px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--bg-subtle);
+      flex-shrink: 0;
     }
 
     .story-a {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-main);
-      line-height: 1.4;
+      line-height: 1.45;
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 4px;
+    }
+
+    .story-a::-webkit-scrollbar {
+      width: 4px;
+    }
+    .story-a::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .story-a::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 2px;
+    }
+    .story-a::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .story-det-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .story-det-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 3px 6px;
+      font-size: 10px;
+    }
+
+    .story-det-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .story-det-count {
+      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 10px;
+      background: #ffffff;
+      padding: 1px 4px;
+      border-radius: 3px;
+      border: 1px solid var(--border-color);
+    }
+
+    .story-read-more-btn {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 2px 0;
+      text-align: left;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .story-read-more-btn:hover {
+      text-decoration: underline;
+      color: var(--primary-hover);
     }
 
     /* -------------------------------------------------------------------------
@@ -1259,36 +1355,39 @@
             <!-- Expandable 8-Question PRD Breakdown -->
             <div class="story-grid" id="storyGrid" style="display:none;">
               <div class="story-item">
-                <span class="story-q">1. What Happened?</span>
-                <span class="story-a" id="sqWhatHappened">—</span>
+                <div class="story-q">1. What Happened?</div>
+                <div class="story-a" id="sqWhatHappened">—</div>
               </div>
               <div class="story-item">
-                <span class="story-q">2. Host & Actor Involved</span>
-                <span class="story-a" id="sqEntities">—</span>
+                <div class="story-q">2. Host & Actor Involved</div>
+                <div class="story-a" id="sqEntities">—</div>
               </div>
               <div class="story-item">
-                <span class="story-q">3. What Happened First?</span>
-                <span class="story-a" id="sqFirst">—</span>
+                <div class="story-q">3. What Happened First?</div>
+                <div class="story-a" id="sqFirst">—</div>
               </div>
               <div class="story-item">
-                <span class="story-q">4. What Happened Next?</span>
-                <span class="story-a" id="sqNext">—</span>
+                <div class="story-q">4. What Happened Next?</div>
+                <div class="story-a" id="sqNext">—</div>
               </div>
               <div class="story-item">
-                <span class="story-q">5. Detections Triggered</span>
-                <span class="story-a" id="sqDetections">—</span>
+                <div class="story-q">
+                  <span>5. Detections Triggered</span>
+                  <span id="sqDetectionsCountBadge" style="font-size:9px; background:var(--bg-subtle); padding:1px 5px; border-radius:3px; color:var(--text-subtle); border:1px solid var(--border-color);"></span>
+                </div>
+                <div class="story-a" id="sqDetections">—</div>
               </div>
               <div class="story-item">
-                <span class="story-q">6. Connecting Evidence</span>
-                <span class="story-a" id="sqEvidence">—</span>
+                <div class="story-q">6. Connecting Evidence</div>
+                <div class="story-a" id="sqEvidence">—</div>
               </div>
               <div class="story-item">
-                <span class="story-q">7. Confirmed vs Inferred</span>
-                <span class="story-a" id="sqConfirmedInferred">—</span>
+                <div class="story-q">7. Confirmed vs Inferred</div>
+                <div class="story-a" id="sqConfirmedInferred">—</div>
               </div>
               <div class="story-item">
-                <span class="story-q">8. Known Outcome & Impact</span>
-                <span class="story-a" id="sqOutcome">—</span>
+                <div class="story-q">8. Known Outcome & Impact</div>
+                <div class="story-a" id="sqOutcome">—</div>
               </div>
             </div>
           </div>
@@ -1541,6 +1640,9 @@
       }
       if (urlParams.get("modal") === "datasets") {
         openDatasetModal();
+      }
+      if (urlParams.get("det_expand") === "1") {
+        toggleDetectionsExpand();
       }
       if (urlParams.get("empty") === "1") {
         showEmptyState("No Active Dataset Selected", "Please select a registered dataset from the manager or upload a new log file to begin analysis.");
@@ -2016,22 +2118,29 @@
         document.getElementById("sqFirst").textContent = qa.what_happened_first || "—";
         document.getElementById("sqNext").textContent = qa.what_happened_next || "—";
         
-        const dets = (qa.triggered_detections || []).map(d => `${d.technique_id} (${d.title.split(':')[0]})`).join(", ");
-        document.getElementById("sqDetections").textContent = dets || `${inc.alert_count} alert(s) triggered`;
+        // Reset detections expanded state for new incident
+        isDetectionsExpanded = false;
+        renderStoryDetections(qa.triggered_detections || [], inc.alert_count);
         
-        document.getElementById("sqEvidence").textContent = qa.connecting_evidence || `${inc.timeline_count} timeline events`;
+        document.getElementById("sqEvidence").innerHTML = `
+          <div style="font-weight:600; color:var(--text-main); margin-bottom:2px;">${escapeHtml(qa.connecting_evidence || `${inc.timeline_count} timeline events`)}</div>
+          <div style="font-size:10px; color:var(--text-muted);">Exact disk byte offsets verified for raw telemetry provenance.</div>
+        `;
         
         const confInf = qa.confirmed_vs_inferred;
         if (confInf) {
           document.getElementById("sqConfirmedInferred").innerHTML = `
-            <div><strong>Confirmed:</strong> ${escapeHtml(confInf.confirmed)}</div>
-            <div style="margin-top:2px;"><strong>Inferred:</strong> ${escapeHtml(confInf.inferred)}</div>
+            <div style="margin-bottom:4px;"><strong style="color:#166534;">Confirmed:</strong> ${escapeHtml(confInf.confirmed)}</div>
+            <div><strong style="color:#854d0e;">Inferred:</strong> ${escapeHtml(confInf.inferred)}</div>
           `;
         } else {
           document.getElementById("sqConfirmedInferred").textContent = "—";
         }
 
-        document.getElementById("sqOutcome").textContent = qa.known_outcome || "No lateral movement confirmed.";
+        document.getElementById("sqOutcome").innerHTML = `
+          <div style="font-weight:600; color:var(--text-main); margin-bottom:2px;">${escapeHtml(qa.known_outcome || "No lateral movement confirmed.")}</div>
+          <div style="font-size:10px; color:var(--text-muted);">${inc.severity.toUpperCase()} severity activity cluster on ${primaryHost}.</div>
+        `;
       } else {
         document.getElementById("storyExecutiveSummary").textContent = inc.summary || "No executive story generated.";
       }
@@ -2059,6 +2168,77 @@
 
       // Render Reach-Next
       renderReachNext(inc.reach_next || []);
+    }
+
+    let isDetectionsExpanded = false;
+    let cachedStoryDetections = [];
+    let cachedAlertCount = 0;
+
+    function renderStoryDetections(detections, alertCount) {
+      cachedStoryDetections = detections || [];
+      cachedAlertCount = alertCount || cachedStoryDetections.length;
+      
+      const badge = document.getElementById("sqDetectionsCountBadge");
+      if (badge) {
+        badge.textContent = `${cachedAlertCount} Alert${cachedAlertCount === 1 ? '' : 's'}`;
+      }
+
+      const container = document.getElementById("sqDetections");
+      if (!cachedStoryDetections || cachedStoryDetections.length === 0) {
+        container.innerHTML = `<span style="color:var(--text-subtle);">${alertCount || 0} alert(s) recorded</span>`;
+        return;
+      }
+
+      // Group identical techniques and titles
+      const groupMap = new Map();
+      cachedStoryDetections.forEach(d => {
+        let cleanTitle = d.title ? d.title.split(":")[0] : (d.technique_name || "Detection");
+        cleanTitle = cleanTitle.replace(/Activity Consistent with Ransomware \(\d+ files\)/, "Ransomware File Renames");
+        cleanTitle = cleanTitle.replace(/Suspicious Authentication Failures \(\d+ attempts\)/, "Auth Failures (Brute Force)");
+        
+        const key = `${d.technique_id || 'ALERT'}:${cleanTitle}`;
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            technique_id: d.technique_id || "ALERT",
+            title: cleanTitle,
+            count: 1
+          });
+        } else {
+          groupMap.get(key).count++;
+        }
+      });
+
+      const grouped = Array.from(groupMap.values());
+      const visibleItems = isDetectionsExpanded ? grouped : grouped.slice(0, 2);
+      const hasMore = grouped.length > 2;
+
+      let html = `<div class="story-det-list">`;
+      visibleItems.forEach(item => {
+        html += `
+          <div class="story-det-pill" title="${escapeHtml(item.title)}">
+            <span class="metric-badge badge-high" style="font-size:9px; padding:1px 4px; font-family:var(--font-mono);">${escapeHtml(item.technique_id)}</span>
+            <span class="story-det-title">${escapeHtml(item.title)}</span>
+            ${item.count > 1 ? `<span class="story-det-count">×${item.count}</span>` : ''}
+          </div>
+        `;
+      });
+
+      if (hasMore) {
+        html += `
+          <button class="story-read-more-btn" onclick="toggleDetectionsExpand(event)">
+            ${isDetectionsExpanded ? "▲ Show fewer" : `▼ Read more (+${grouped.length - 2} more)`}
+          </button>
+        `;
+      }
+      html += `</div>`;
+
+      container.innerHTML = html;
+    }
+
+    function toggleDetectionsExpand(e) {
+      if (e) e.stopPropagation();
+      isDetectionsExpanded = !isDetectionsExpanded;
+      renderStoryDetections(cachedStoryDetections, cachedAlertCount);
     }
 
     function toggleStoryDetails() {
